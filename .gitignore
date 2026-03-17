@@ -1,7 +1,13 @@
 myenv
-
+# Ignore large files
+models/best_ids_model.pkl
 *.csv
 *.zip
+
+# Ignore folders
 uploads/
 test data/
 __pycache__/
+
+# Python
+*.pyc
