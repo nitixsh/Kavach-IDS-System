@@ -1,0 +1,858 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — KAVACH IDS{% endblock %}
+
+{% block page_title %}Control Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Dashboard-specific overrides ───────────────────────── */
+    .metric-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: box-shadow .2s, transform .2s;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+    }
+
+    .metric-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 2px;
+        background: var(--accent-line, linear-gradient(90deg, var(--accent), var(--accent2)));
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform .3s ease;
+    }
+
+    .metric-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); }
+    .metric-card:hover::after { transform: scaleX(1); }
+
+    .metric-card.danger-card  { --accent-line: linear-gradient(90deg,var(--danger),#fb7185); }
+    .metric-card.success-card { --accent-line: linear-gradient(90deg,var(--success),#34d399); }
+    .metric-card.warning-card { --accent-line: linear-gradient(90deg,var(--warning),#fbbf24); }
+
+    .metric-label {
+        font-family: var(--mono);
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .09em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: .5rem;
+    }
+
+    .metric-value {
+        font-family: var(--mono);
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.1;
+        margin-bottom: .4rem;
+    }
+
+    .metric-sub {
+        font-size: .78rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Chart panels */
+    .chart-panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chart-panel-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel);
+        flex-shrink: 0;
+    }
+
+    .chart-panel-header h6 {
+        margin: 0;
+        font-weight: 600;
+        font-size: .875rem;
+        color: var(--text-primary);
+    }
+
+    .chart-panel-body {
+        padding: 1.25rem;
+        flex: 1;
+        position: relative;
+        min-height: 0;
+    }
+
+    .chart-panel-body canvas { width: 100% !important; }
+
+    /* ML Algorithm cards */
+    .algo-card {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        height: 100%;
+        transition: box-shadow .2s, transform .2s;
+    }
+
+    .algo-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+
+    .algo-name {
+        font-weight: 600;
+        font-size: .9375rem;
+        color: var(--text-primary);
+        margin-bottom: .25rem;
+    }
+
+    .algo-desc {
+        font-size: .78rem;
+        color: var(--text-muted);
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .algo-accuracy {
+        font-family: var(--mono);
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: .5rem;
+    }
+
+    .algo-metrics {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: var(--text-muted);
+    }
+
+    /* Progress bars */
+    .ids-progress {
+        height: 5px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        margin: .6rem 0 .5rem;
+    }
+
+    .ids-progress-bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width .8s ease;
+    }
+
+    .ids-progress-bar.green  { background: linear-gradient(90deg, var(--success), #34d399); }
+    .ids-progress-bar.amber  { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+    .ids-progress-bar.blue   { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .ids-progress-bar.indigo { background: linear-gradient(90deg, var(--info), #818cf8); }
+
+    /* Health rows */
+    .health-row {
+        padding: .75rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .health-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .health-label {
+        font-size: .8125rem;
+        color: var(--text-body);
+        font-weight: 500;
+    }
+
+    .health-value {
+        font-family: var(--mono);
+        font-size: .72rem;
+    }
+
+    /* Activity feed */
+    .activity-list { max-height: 440px; overflow-y: auto; }
+
+    .activity-list::-webkit-scrollbar       { width: 4px; }
+    .activity-list::-webkit-scrollbar-track { background: transparent; }
+    .activity-list::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 2px; }
+
+    .activity-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: .875rem 0;
+        border-bottom: 1px solid var(--border);
+        transition: background .15s;
+    }
+
+    .activity-row:last-child { border-bottom: none; }
+
+    .activity-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .activity-ip {
+        font-family: var(--mono);
+        font-size: .8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        min-width: 110px;
+    }
+
+    .activity-time {
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: var(--text-faint);
+        margin-left: auto;
+        white-space: nowrap;
+    }
+
+    /* Tab switcher */
+    .tab-switcher {
+        display: inline-flex;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 3px;
+        gap: 2px;
+    }
+
+    .tab-switcher button {
+        font-family: var(--mono);
+        font-size: .7rem;
+        font-weight: 600;
+        background: transparent;
+        border: none;
+        padding: 4px 12px;
+        border-radius: calc(var(--radius) - 2px);
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: background .2s, color .2s;
+    }
+
+    .tab-switcher button.active {
+        background: var(--panel);
+        color: var(--accent);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Live badge */
+    .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-family: var(--mono);
+        font-size: .68rem;
+        font-weight: 600;
+        color: var(--danger);
+        background: rgba(244,63,94,.08);
+        border: 1px solid rgba(244,63,94,.2);
+        border-radius: 50px;
+        padding: 3px 10px;
+    }
+
+    .live-dot {
+        width: 6px; height: 6px;
+        background: var(--danger);
+        border-radius: 50%;
+        animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+
+    /* Quick actions */
+    .quick-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: .875rem 1rem;
+        border-radius: var(--radius);
+        font-size: .875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        color: var(--text-body);
+        background: var(--panel);
+        transition: all .2s;
+        margin-bottom: .5rem;
+    }
+
+    .quick-btn:last-child { margin-bottom: 0; }
+
+    .quick-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(14,165,233,.04);
+        transform: translateX(3px);
+    }
+
+    .quick-btn i { font-size: 1rem; color: var(--accent); flex-shrink: 0; }
+
+    /* Toast notification */
+    #ids-toast {
+        position: fixed;
+        top: 72px; right: 20px;
+        z-index: 9999;
+        min-width: 260px;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page top row ──────────────────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                   color:var(--text-primary);margin:0;">
+            Network IDS Dashboard
+        </h2>
+        <p style="font-size:.8125rem;color:var(--text-muted);margin:.2rem 0 0;">
+            Real-time intrusion detection &amp; threat analysis
+        </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="live-badge">
+            <span class="live-dot"></span>LIVE
+        </span>
+        <button class="btn btn-ghost btn-sm" onclick="refreshDashboard()" id="refreshBtn">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<!-- ── Metric Cards ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <!-- Total Requests -->
+    <div class="col-6 col-lg-3">
+        <div class="metric-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-blue"><i class="bi bi-activity"></i></div>
+                <span style="font-family:var(--mono);font-size:.68rem;color:var(--text-faint);">TOTAL</span>
+            </div>
+            <div class="metric-label">Packets Analysed</div>
+            <div class="metric-value" id="total-requests">{{ stats.total_predictions }}</div>
+            <div class="metric-sub">
+                <i class="bi bi-circle-fill" style="font-size:.4rem;color:var(--success);"></i>
+                {% if stats.total_predictions > 0 %}Engine active{% else %}Ready{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Threats -->
+    <div class="col-6 col-lg-3">
+        <div class="metric-card danger-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-red"><i class="bi bi-shield-exclamation"></i></div>
+                <span style="font-family:var(--mono);font-size:.68rem;color:var(--danger);">ALERT</span>
+            </div>
+            <div class="metric-label">Threats Detected</div>
+            <div class="metric-value" id="attacks-detected" style="color:var(--danger);">{{ stats.attacks_detected }}</div>
+            <div class="metric-sub" style="color:var(--warning);">
+                <i class="bi bi-exclamation-triangle"></i>{{ stats.detection_rate }}% detection rate
+            </div>
+        </div>
+    </div>
+
+    <!-- Secure -->
+    <div class="col-6 col-lg-3">
+        <div class="metric-card success-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-green"><i class="bi bi-shield-check"></i></div>
+                <span style="font-family:var(--mono);font-size:.68rem;color:var(--success);">CLEAN</span>
+            </div>
+            <div class="metric-label">Secure Connections</div>
+            <div class="metric-value" id="normal-traffic" style="color:var(--success);">{{ stats.normal_traffic }}</div>
+            <div class="metric-sub" style="color:var(--success);">
+                <i class="bi bi-check-circle"></i>
+                {% if stats.total_predictions > 0 %}{{ "%.1f"|format((stats.normal_traffic / stats.total_predictions) * 100) }}% clean{% else %}0% clean{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Confidence -->
+    <div class="col-6 col-lg-3">
+        <div class="metric-card warning-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-amber"><i class="bi bi-cpu"></i></div>
+                <span style="font-family:var(--mono);font-size:.68rem;color:var(--warning);">ML</span>
+            </div>
+            <div class="metric-label">Model Confidence</div>
+            <div class="metric-value" style="color:var(--warning);">98%</div>
+            <div class="ids-progress">
+                <div class="ids-progress-bar amber" style="width:{{ stats.avg_confidence }}%;"></div>
+            </div>
+            <div class="metric-sub"><i class="bi bi-robot"></i>Random Forest active</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── ML Algorithm Performance ─────────────────────────────── -->
+<div class="chart-panel mb-4">
+    <div class="chart-panel-header">
+        <div class="section-icon"><i class="bi bi-cpu-fill"></i></div>
+        <h6>ML Algorithm Performance</h6>
+        <span class="ms-auto chip">3 models active</span>
+    </div>
+    <div class="chart-panel-body">
+        <div class="row g-3">
+
+            <!-- Random Forest -->
+            <div class="col-md-4">
+                <div class="algo-card">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge badge-normal">
+                            <i class="bi bi-trophy-fill me-1"></i>Best
+                        </span>
+                    </div>
+                    <div class="algo-name">Random Forest</div>
+                    <div class="algo-desc">Ensemble of decision trees with robust classification and feature importance analysis.</div>
+                    <div class="algo-accuracy">98.1%</div>
+                    <div class="ids-progress">
+                        <div class="ids-progress-bar green" style="width:98.1%;"></div>
+                    </div>
+                    <div class="algo-metrics">
+                        <span>F1 98.13%</span>
+                        <span>Prec 98.17%</span>
+                        <span>Rec 98.12%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extra Trees -->
+            <div class="col-md-4">
+                <div class="algo-card">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge badge-warning">
+                            <i class="bi bi-star-fill me-1"></i>Excellent
+                        </span>
+                    </div>
+                    <div class="algo-name">Extra Trees</div>
+                    <div class="algo-desc">Extremely randomised trees with improved generalisation and reduced overfitting.</div>
+                    <div class="algo-accuracy">98.0%</div>
+                    <div class="ids-progress">
+                        <div class="ids-progress-bar amber" style="width:98.0%;"></div>
+                    </div>
+                    <div class="algo-metrics">
+                        <span>F1 98.06%</span>
+                        <span>Prec 98.07%</span>
+                        <span>Rec 98.06%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decision Tree -->
+            <div class="col-md-4">
+                <div class="algo-card">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge badge-info">
+                            <i class="bi bi-award-fill me-1"></i>Good
+                        </span>
+                    </div>
+                    <div class="algo-name">Decision Tree</div>
+                    <div class="algo-desc">Tree model with clear decision paths and high interpretability for security analysis.</div>
+                    <div class="algo-accuracy">98.0%</div>
+                    <div class="ids-progress">
+                        <div class="ids-progress-bar blue" style="width:98.0%;"></div>
+                    </div>
+                    <div class="algo-metrics">
+                        <span>F1 98.07%</span>
+                        <span>Prec 98.12%</span>
+                        <span>Rec 98.06%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ── Charts Row ────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+    <!-- Activity Chart -->
+    <div class="col-lg-8">
+        <div class="chart-panel">
+            <div class="chart-panel-header">
+                <div class="section-icon"><i class="bi bi-graph-up"></i></div>
+                <h6>Network Activity Overview</h6>
+                <div class="tab-switcher ms-auto">
+                    <button class="active" onclick="switchChart('hourly', this)">24H</button>
+                </div>
+            </div>
+            <div class="chart-panel-body" style="height:320px;">
+                <canvas id="activityChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart -->
+    <div class="col-lg-4">
+        <div class="chart-panel">
+            <div class="chart-panel-header">
+                <div class="section-icon"><i class="bi bi-pie-chart"></i></div>
+                <h6>Attack Distribution</h6>
+            </div>
+            <div class="chart-panel-body" style="height:320px;">
+                <canvas id="attackPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Accuracy Comparison Chart ────────────────────────────── -->
+<div class="chart-panel mb-4">
+    <div class="chart-panel-header">
+        <div class="section-icon"><i class="bi bi-bar-chart-fill"></i></div>
+        <h6>Algorithm Accuracy Comparison</h6>
+    </div>
+    <div class="chart-panel-body" style="height:280px;">
+        <canvas id="accuracyChart"></canvas>
+    </div>
+</div>
+
+<!-- ── Recent Activity + Quick Actions ──────────────────────── -->
+<div class="row g-3">
+
+    <!-- Recent detections -->
+    <div class="col-lg-7">
+        <div class="chart-panel">
+            <div class="chart-panel-header">
+                <div class="section-icon" style="background:rgba(244,63,94,.1);color:var(--danger);">
+                    <i class="bi bi-activity"></i>
+                </div>
+                <h6>Recent Detections</h6>
+                <span class="ms-auto badge badge-attack">{{ stats.attacks_detected }} threats</span>
+            </div>
+            <div class="chart-panel-body p-0">
+                <div class="activity-list px-3">
+                    {% for prediction in stats.recent_predictions[:10] if stats.recent_predictions %}
+                    <div class="activity-row">
+                        <span class="activity-dot"
+                              style="background:{% if prediction.prediction_result == 'Attack' %}var(--danger){% else %}var(--success){% endif %};"></span>
+                        <span class="activity-ip">{{ prediction.ip_address }}</span>
+                        <span class="badge {% if prediction.attack_type == 'Normal' %}badge-normal{% elif prediction.attack_type in ['DDoS','Botnet'] %}badge-attack{% elif prediction.attack_type in ['Brute Force','Port Scanning'] %}badge-warning{% else %}badge-info{% endif %}">
+                            {{ prediction.attack_type }}
+                        </span>
+                        {% if prediction.prediction_result == 'Attack' %}
+                        <span style="font-family:var(--mono);font-size:.68rem;font-weight:600;
+                                     color:var(--danger);white-space:nowrap;">
+                            ⚠ THREAT
+                        </span>
+                        {% else %}
+                        <span style="font-family:var(--mono);font-size:.68rem;
+                                     color:var(--success);white-space:nowrap;">
+                            ✓ CLEAN
+                        </span>
+                        {% endif %}
+                        <span class="activity-time">
+                            {{ prediction.timestamp.split('.')[0] if '.' in prediction.timestamp else prediction.timestamp }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div style="padding:3rem;text-align:center;">
+                        <div style="width:48px;height:48px;background:rgba(16,185,129,.08);border-radius:50%;
+                                    display:inline-flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                            <i class="bi bi-shield-check" style="font-size:1.3rem;color:var(--success);"></i>
+                        </div>
+                        <p style="font-family:var(--mono);font-size:.78rem;color:var(--text-muted);margin:0;">
+                            No recent detections
+                        </p>
+                        <p style="font-size:.75rem;color:var(--text-faint);margin:.25rem 0 0;">
+                            Upload network data to see analysis results
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick actions + system health -->
+    <div class="col-lg-5">
+        <div class="row g-3">
+
+            <!-- Quick Actions -->
+            <div class="col-12">
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div class="section-icon"><i class="bi bi-lightning-charge"></i></div>
+                        <h6>Quick Actions</h6>
+                    </div>
+                    <div class="chart-panel-body">
+                        <a href="{{ url_for('upload') }}" class="quick-btn">
+                            <i class="bi bi-cloud-upload"></i>
+                            <span>Analyse Traffic Data</span>
+                            <i class="bi bi-chevron-right ms-auto" style="font-size:.7rem;color:var(--text-faint);"></i>
+                        </a>
+                        <a href="{{ url_for('reports') }}" class="quick-btn">
+                            <i class="bi bi-file-earmark-bar-graph"></i>
+                            <span>View Reports</span>
+                            <i class="bi bi-chevron-right ms-auto" style="font-size:.7rem;color:var(--text-faint);"></i>
+                        </a>
+                        <a href="{{ url_for('monitor_page') }}" class="quick-btn">
+                            <i class="bi bi-broadcast"></i>
+                            <span>Live Monitor</span>
+                            <i class="bi bi-chevron-right ms-auto" style="font-size:.7rem;color:var(--text-faint);"></i>
+                        </a>
+                        <a href="{{ url_for('blocked_ips') }}" class="quick-btn">
+                            <i class="bi bi-shield-x"></i>
+                            <span>Blocked IPs</span>
+                            <i class="bi bi-chevron-right ms-auto" style="font-size:.7rem;color:var(--text-faint);"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="col-12">
+                <div class="chart-panel">
+                    <div class="chart-panel-header">
+                        <div class="section-icon"><i class="bi bi-heart-pulse"></i></div>
+                        <h6>System Health</h6>
+                    </div>
+                    <div class="chart-panel-body">
+
+                        <div class="health-row">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="health-label">Random Forest Engine</span>
+                                <span class="health-value" style="color:var(--success);">98.1%</span>
+                            </div>
+                            <div class="ids-progress">
+                                <div class="ids-progress-bar green" style="width:98.1%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="health-label">Extra Trees Monitor</span>
+                                <span class="health-value" style="color:var(--warning);">98.0%</span>
+                            </div>
+                            <div class="ids-progress">
+                                <div class="ids-progress-bar amber" style="width:98.0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="health-label">Decision Tree</span>
+                                <span class="health-value" style="color:var(--accent);">98.0%</span>
+                            </div>
+                            <div class="ids-progress">
+                                <div class="ids-progress-bar blue" style="width:98.0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="health-row">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="health-label">Database</span>
+                                <span class="health-value" style="color:var(--success);">Optimal</span>
+                            </div>
+                            <div class="ids-progress">
+                                <div class="ids-progress-bar green" style="width:96%;"></div>
+                            </div>
+                            <div style="font-family:var(--mono);font-size:.68rem;color:var(--text-faint);">
+                                {{ stats.total_predictions }} records indexed
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="ids-toast"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const hourlyData     = {{ stats.hourly_trends | tojson if stats.hourly_trends else '[]' }};
+    const attackTypesData= {{ stats.attack_types  | tojson if stats.attack_types  else '[]' }};
+
+    const fallbackAttackTypes = [
+        { attack_type:'Normal',            count:0 },
+        { attack_type:'Botnet Activities', count:0 },
+        { attack_type:'Service Exploits',  count:0 },
+        { attack_type:'DDoS Attacks',      count:0 },
+        { attack_type:'Port Scanning',     count:0 },
+        { attack_type:'Brute Force',       count:0 }
+    ];
+
+    let chartHourlyData = hourlyData.length > 0
+        ? hourlyData.map(h => ({ hour: String(h.hour||'00').padStart(2,'0'), total_requests:h.total_requests||0, attacks:h.attacks||0 }))
+        : [];
+
+    const chartAttackTypes = attackTypesData.length > 0 ? attackTypesData : fallbackAttackTypes;
+
+    // Shared chart defaults
+    Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+    Chart.defaults.font.size   = 11;
+    Chart.defaults.color       = '#64748b';
+
+    const gridColor = 'rgba(0,0,0,0.04)';
+
+    /* Activity chart */
+    const activityCtx = document.getElementById('activityChart').getContext('2d');
+    const activityChart = new Chart(activityCtx, {
+        type: 'line',
+        data: {
+            labels: chartHourlyData.map(d => d.hour),
+            datasets: [{
+                label: 'Total Traffic',
+                data: chartHourlyData.map(d => d.total_requests),
+                borderColor: '#0ea5e9',
+                backgroundColor: 'rgba(14,165,233,0.07)',
+                tension: 0.4, fill: true, borderWidth: 2,
+                pointRadius: 3, pointBackgroundColor: '#0ea5e9',
+                pointBorderColor: '#fff', pointBorderWidth: 1.5
+            },{
+                label: 'Threats',
+                data: chartHourlyData.map(d => d.attacks),
+                borderColor: '#f43f5e',
+                backgroundColor: 'rgba(244,63,94,0.06)',
+                tension: 0.4, fill: true, borderWidth: 2,
+                pointRadius: 3, pointBackgroundColor: '#f43f5e',
+                pointBorderColor: '#fff', pointBorderWidth: 1.5
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            scales: {
+                y: { beginAtZero: true, grid: { color: gridColor }, border: { display: false },
+                     ticks: { callback: v => v.toLocaleString() } },
+                x: { grid: { display: false }, border: { display: false } }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, padding: 16, boxWidth: 8 } },
+                tooltip: {
+                    backgroundColor: '#0b1120', titleColor: '#fff', bodyColor: '#94a3b8',
+                    borderColor: '#1e2d45', borderWidth: 1, padding: 10,
+                    callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString() }
+                }
+            }
+        }
+    });
+
+    /* Pie chart */
+    const pieCtx = document.getElementById('attackPieChart').getContext('2d');
+    new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: chartAttackTypes.map(a => a.attack_type),
+            datasets:[{
+                data: chartAttackTypes.map(a => a.count),
+                backgroundColor: ['#10b981','#f43f5e','#f59e0b','#dc2626','#f97316','#6366f1'],
+                borderWidth: 2, borderColor: '#ffffff', hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, boxWidth: 8 } },
+                tooltip: { callbacks: { label: ctx => {
+                    const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                    const pct = total ? ((ctx.parsed/total)*100).toFixed(1) : 0;
+                    return ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString() + ' (' + pct + '%)';
+                }}}
+            }
+        }
+    });
+
+    /* Accuracy bar chart */
+    const accCtx = document.getElementById('accuracyChart').getContext('2d');
+    new Chart(accCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Random Forest','Extra Trees','Decision Tree'],
+            datasets:[
+                { label:'Accuracy', data:[98.12,98.06,98.06], backgroundColor:'rgba(14,165,233,.75)', borderColor:'#0ea5e9', borderWidth:1.5, borderRadius:5, borderSkipped:false },
+                { label:'F1-Score', data:[98.13,98.07,98.07], backgroundColor:'rgba(16,185,129,.75)', borderColor:'#10b981', borderWidth:1.5, borderRadius:5, borderSkipped:false },
+                { label:'Precision',data:[98.17,98.12,98.12], backgroundColor:'rgba(245,158,11,.75)', borderColor:'#f59e0b', borderWidth:1.5, borderRadius:5, borderSkipped:false },
+                { label:'Recall',   data:[98.17,98.06,98.06], backgroundColor:'rgba(99,102,241,.75)', borderColor:'#6366f1', borderWidth:1.5, borderRadius:5, borderSkipped:false }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                y: { min:97.5, max:98.5, grid:{ color:gridColor }, border:{ display:false },
+                     ticks:{ callback: v => v + '%' } },
+                x: { grid:{ display:false }, border:{ display:false } }
+            },
+            plugins: {
+                legend: { position:'top', labels:{ usePointStyle:true, padding:16, boxWidth:8 } },
+                tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + '%' } }
+            }
+        }
+    });
+
+    /* Chart period switch */
+    function switchChart(period, btn) {
+        document.querySelectorAll('.tab-switcher button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    /* Refresh */
+    function refreshDashboard() {
+        const btn = document.getElementById('refreshBtn');
+        btn.innerHTML = '<span class="loading me-1"></span>Refreshing…';
+        btn.disabled = true;
+
+        fetch('/api/dashboard_data')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('total-requests').textContent   = data.total_predictions || 0;
+                document.getElementById('attacks-detected').textContent = data.attacks_detected  || 0;
+                document.getElementById('normal-traffic').textContent   = data.normal_traffic    || 0;
+                showToast('Dashboard refreshed', 'success');
+            })
+            .catch(() => showToast('Refresh failed', 'danger'))
+            .finally(() => {
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Refresh';
+                btn.disabled  = false;
+            });
+    }
+
+    /* Toast */
+    function showToast(msg, type='info') {
+        const toast = document.getElementById('ids-toast');
+        toast.innerHTML = `<div class="alert alert-${type} py-2 px-3 shadow" style="font-size:.8125rem;">
+            <i class="bi bi-${type==='success'?'check-circle-fill':type==='danger'?'exclamation-triangle-fill':'info-circle-fill'} me-2"></i>${msg}
+        </div>`;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    /* Auto-refresh every 30s */
+    setInterval(() => {
+        fetch('/api/dashboard_data')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('total-requests').textContent   = data.total_predictions || 0;
+                document.getElementById('attacks-detected').textContent = data.attacks_detected  || 0;
+                document.getElementById('normal-traffic').textContent   = data.normal_traffic    || 0;
+            })
+            .catch(() => {});
+    }, 30000);
+</script>
+{% endblock %}

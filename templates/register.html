@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account — KAVACH IDS{% endblock %}
+
+{% block page_title %}Create Account{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Auth page layout ────────────────────────────────────── */
+    .auth-wrap {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 560px;
+    }
+
+    /* ── Card top stripe ─────────────────────────────────────── */
+    .auth-card-header {
+        background: var(--navy);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 2rem 2rem 1.5rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-card-header::before {
+        content: '';
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 60% 80% at 50% 0%,
+            rgba(14,165,233,.18) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .auth-shield {
+        width: 52px; height: 52px;
+        border-radius: var(--radius);
+        background: rgba(14,165,233,.15);
+        border: 1px solid rgba(14,165,233,.25);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; color: var(--accent);
+        margin-bottom: 1rem;
+        position: relative; z-index: 1;
+    }
+
+    .auth-card-title {
+        font-family: var(--mono);
+        font-size: 1rem; font-weight: 700;
+        color: #fff;
+        margin-bottom: 4px;
+        position: relative; z-index: 1;
+    }
+
+    .auth-card-sub {
+        font-size: .78rem;
+        color: rgba(255,255,255,.45);
+        position: relative; z-index: 1;
+    }
+
+    /* ── Card body ───────────────────────────────────────────── */
+    .auth-card-body {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        padding: 1.75rem 2rem;
+    }
+
+    /* ── Password toggle button (blended) ───────────────────── */
+    .pw-toggle {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-left: none;
+        color: var(--text-faint);
+        padding: 0 .75rem;
+        cursor: pointer;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        transition: color .15s;
+    }
+
+    .pw-toggle:hover { color: var(--accent); }
+
+    /* ── Password strength bar ───────────────────────────────── */
+    .strength-track {
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+        margin: 5px 0 3px;
+        display: none;
+    }
+
+    .strength-fill {
+        height: 100%;
+        border-radius: 2px;
+        width: 0%;
+        transition: width .3s, background .3s;
+    }
+
+    /* ── Inline feedback text ────────────────────────────────── */
+    .field-hint {
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: var(--text-faint);
+        margin-top: 4px;
+    }
+
+    .field-hint.ok  { color: var(--success); }
+    .field-hint.err { color: var(--danger); }
+    .field-hint.mid { color: var(--warning); }
+
+    /* ── Checkbox styling ────────────────────────────────────── */
+    .form-check-input:checked {
+        background-color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .form-check-label {
+        font-size: .8125rem;
+        color: var(--text-muted);
+    }
+
+    .form-check-label a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .form-check-label a:hover { text-decoration: underline; }
+
+    /* ── Divider ─────────────────────────────────────────────── */
+    .auth-divider {
+        display: flex; align-items: center; gap: .75rem;
+        margin: 1.25rem 0;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+        content: ''; flex: 1;
+        height: 1px; background: var(--border);
+    }
+
+    .auth-divider span {
+        font-family: var(--mono);
+        font-size: .68rem; color: var(--text-faint);
+        letter-spacing: .05em;
+    }
+
+    /* ── Trust badges row ────────────────────────────────────── */
+    .trust-row {
+        display: flex; gap: 1rem; justify-content: center;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .trust-item {
+        display: flex; flex-direction: column;
+        align-items: center; gap: 4px;
+        font-family: var(--mono);
+        font-size: .65rem; color: var(--text-faint);
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .trust-item i {
+        font-size: 1.1rem;
+    }
+
+    /* ── Security features card ──────────────────────────────── */
+    .sec-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .sec-card-header {
+        display: flex; align-items: center; gap: 8px;
+        font-size: .8125rem; font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .sec-item {
+        display: flex; align-items: center; gap: 8px;
+        font-size: .78rem; color: var(--text-muted);
+        padding: .35rem 0;
+    }
+
+    .sec-item i { color: var(--success); font-size: .8rem; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+
+        <!-- ── Card ──────────────────────────────────────────── -->
+        <div class="auth-card-header">
+            <div class="auth-shield"><i class="bi bi-person-plus"></i></div>
+            <div class="auth-card-title">Create Your Account</div>
+            <div class="auth-card-sub">Join the Kavach secure monitoring platform</div>
+        </div>
+
+        <div class="auth-card-body">
+            <form method="POST" action="{{ url_for('register') }}" id="registerForm" novalidate>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="username" class="form-label">Username <span style="color:var(--danger);">*</span></label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               placeholder="e.g. jsmith" required autocomplete="username">
+                        <div class="field-hint" id="usernameHint">Min 3 chars · letters, numbers, underscores</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email Address <span style="color:var(--danger);">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               placeholder="you@example.com" required autocomplete="email">
+                        <div class="field-hint">We will never share your email</div>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password <span style="color:var(--danger);">*</span></label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password"
+                               placeholder="Create a strong password" required autocomplete="new-password">
+                        <button class="pw-toggle" type="button" onclick="togglePw('password','passwordEye')">
+                            <i class="bi bi-eye" id="passwordEye"></i>
+                        </button>
+                    </div>
+                    <div class="strength-track" id="strengthTrack">
+                        <div class="strength-fill" id="strengthFill"></div>
+                    </div>
+                    <div class="field-hint" id="passwordStrength"></div>
+                </div>
+
+                <!-- Confirm password -->
+                <div class="mb-4">
+                    <label for="confirmPassword" class="form-label">Confirm Password <span style="color:var(--danger);">*</span></label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+                               placeholder="Repeat your password" required autocomplete="new-password">
+                        <button class="pw-toggle" type="button" onclick="togglePw('confirmPassword','confirmEye')">
+                            <i class="bi bi-eye" id="confirmEye"></i>
+                        </button>
+                    </div>
+                    <div class="field-hint" id="passwordMatch"></div>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="mb-2 form-check">
+                    <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                    <label class="form-check-label" for="agreeTerms">
+                        I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+                        <span style="color:var(--danger);">*</span>
+                    </label>
+                </div>
+
+                <div class="mb-4 form-check">
+                    <input type="checkbox" class="form-check-input" id="emailUpdates">
+                    <label class="form-check-label" for="emailUpdates">
+                        Send me security updates and announcements
+                    </label>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn btn-primary w-100" id="submitBtn"
+                        style="padding:11px;font-size:.9375rem;">
+                    <i class="bi bi-person-plus me-1"></i>Create Account
+                </button>
+
+            </form>
+
+            <div class="auth-divider"><span>already have an account?</span></div>
+
+            <a href="{{ url_for('login') }}" class="btn btn-ghost w-100"
+               style="padding:10px;font-size:.875rem;">
+                Sign In Instead
+            </a>
+
+            <div class="trust-row">
+                <div class="trust-item">
+                    <i class="bi bi-shield-check" style="color:var(--success);"></i>
+                    Secure
+                </div>
+                <div class="trust-item">
+                    <i class="bi bi-lightning-charge" style="color:var(--warning);"></i>
+                    Quick Setup
+                </div>
+                <div class="trust-item">
+                    <i class="bi bi-headset" style="color:var(--accent);"></i>
+                    24/7 Support
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Security features ─────────────────────────────── -->
+        <div class="sec-card">
+            <div class="sec-card-header">
+                <div class="section-icon"><i class="bi bi-shield-lock"></i></div>
+                Security Features
+            </div>
+            <div class="row g-0">
+                <div class="col-sm-6">
+                    <div class="sec-item"><i class="bi bi-check-circle-fill"></i>End-to-end encryption</div>
+                    <div class="sec-item"><i class="bi bi-check-circle-fill"></i>Multi-factor authentication</div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="sec-item"><i class="bi bi-check-circle-fill"></i>Secure data storage</div>
+                    <div class="sec-item"><i class="bi bi-check-circle-fill"></i>Periodic security audits</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /.auth-card -->
+</div><!-- /.auth-wrap -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    /* ── Password visibility toggle ─────────────────────────── */
+    function togglePw(fieldId, iconId) {
+        const f = document.getElementById(fieldId);
+        const i = document.getElementById(iconId);
+        const show = f.type === 'password';
+        f.type = show ? 'text' : 'password';
+        i.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+    }
+
+    /* ── Password strength ──────────────────────────────────── */
+    document.getElementById('password').addEventListener('input', function () {
+        const pw  = this.value;
+        const div = document.getElementById('passwordStrength');
+        const track = document.getElementById('strengthTrack');
+        const fill  = document.getElementById('strengthFill');
+
+        if (!pw) { div.textContent = ''; track.style.display = 'none'; return; }
+
+        let score = 0, missing = [];
+        if (pw.length >= 8) score++; else missing.push('8+ chars');
+        if (/[a-z]/.test(pw))       score++; else missing.push('lowercase');
+        if (/[A-Z]/.test(pw))       score++; else missing.push('uppercase');
+        if (/[0-9]/.test(pw))       score++; else missing.push('number');
+        if (/[^A-Za-z0-9]/.test(pw)) score++; else missing.push('symbol');
+
+        const levels = [
+            { lbl:'Weak',   cls:'err', color:'var(--danger)',  pct:20 },
+            { lbl:'Weak',   cls:'err', color:'var(--danger)',  pct:40 },
+            { lbl:'Fair',   cls:'mid', color:'var(--warning)', pct:60 },
+            { lbl:'Good',   cls:'ok',  color:'var(--success)', pct:80 },
+            { lbl:'Strong', cls:'ok',  color:'var(--success)', pct:100 },
+        ];
+        const l = levels[score - 1] || levels[0];
+
+        track.style.display = 'block';
+        fill.style.width    = l.pct + '%';
+        fill.style.background = l.color;
+
+        div.className = 'field-hint ' + l.cls;
+        div.textContent = 'Strength: ' + l.lbl +
+            (missing.length ? ' · Add: ' + missing.join(', ') : '');
+
+        checkMatch();
+    });
+
+    /* ── Password match ─────────────────────────────────────── */
+    document.getElementById('confirmPassword').addEventListener('input', checkMatch);
+
+    function checkMatch() {
+        const pw  = document.getElementById('password').value;
+        const cpw = document.getElementById('confirmPassword').value;
+        const el  = document.getElementById('passwordMatch');
+        if (!cpw) { el.textContent = ''; el.className = 'field-hint'; return; }
+        if (pw === cpw) { el.textContent = '✓ Passwords match'; el.className = 'field-hint ok'; }
+        else            { el.textContent = '✗ Passwords do not match'; el.className = 'field-hint err'; }
+    }
+
+    /* ── Username hint ──────────────────────────────────────── */
+    document.getElementById('username').addEventListener('input', function () {
+        const v  = this.value;
+        const el = document.getElementById('usernameHint');
+        if (!v) { el.textContent = 'Min 3 chars · letters, numbers, underscores'; el.className = 'field-hint'; return; }
+        if (v.length < 3) { el.textContent = '✗ Too short (min 3 characters)'; el.className = 'field-hint err'; return; }
+        if (!/^[a-zA-Z0-9_]+$/.test(v)) { el.textContent = '✗ Only letters, numbers and underscores'; el.className = 'field-hint err'; return; }
+        el.textContent = '✓ Username looks good'; el.className = 'field-hint ok';
+    });
+
+    /* ── Form validation ────────────────────────────────────── */
+    document.getElementById('registerForm').addEventListener('submit', function (e) {
+        const username = document.getElementById('username').value.trim();
+        const email    = document.getElementById('email').value.trim();
+        const pw       = document.getElementById('password').value;
+        const cpw      = document.getElementById('confirmPassword').value;
+        const terms    = document.getElementById('agreeTerms').checked;
+
+        const errors = [];
+        if (username.length < 3)                    errors.push('Username must be at least 3 characters.');
+        if (!/^[a-zA-Z0-9_]+$/.test(username))      errors.push('Username: letters, numbers and underscores only.');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Enter a valid email address.');
+        if (pw.length < 6)                           errors.push('Password must be at least 6 characters.');
+        if (pw !== cpw)                              errors.push('Passwords do not match.');
+        if (!terms)                                  errors.push('You must agree to the Terms of Service.');
+
+        if (errors.length) {
+            e.preventDefault();
+            // Show inline error banner
+            let banner = document.getElementById('formErrorBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'formErrorBanner';
+                banner.style.cssText = `background:rgba(244,63,94,.07);border:1px solid rgba(244,63,94,.25);
+                    border-radius:var(--radius);padding:.875rem 1rem;margin-bottom:1rem;
+                    font-size:.78rem;color:#9f1239;`;
+                this.prepend(banner);
+            }
+            banner.innerHTML = errors.map(err =>
+                `<div style="display:flex;gap:6px;margin-bottom:3px;">
+                    <i class="bi bi-exclamation-circle-fill" style="flex-shrink:0;margin-top:1px;"></i>
+                    <span>${err}</span>
+                </div>`).join('');
+            banner.scrollIntoView({ behavior:'smooth', block:'nearest' });
+            return;
+        }
+
+        const btn = this.querySelector('#submitBtn');
+        btn.innerHTML = '<span class="loading me-2"></span>Creating Account…';
+        btn.disabled = true;
+    });
+</script>
+{% endblock %}

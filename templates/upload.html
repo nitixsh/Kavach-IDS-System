@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+
+{% block title %}Upload & Analyse — KAVACH IDS{% endblock %}
+
+{% block page_title %}Upload Network Traffic Data{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Upload drop zone ────────────────────────────────────── */
+    .drop-zone {
+        border: 2px dashed var(--border-dark);
+        border-radius: var(--radius-lg);
+        padding: 3rem 2rem;
+        text-align: center;
+        background: var(--panel-alt);
+        cursor: pointer;
+        transition: border-color .2s, background .2s, transform .2s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .drop-zone:hover {
+        border-color: var(--accent);
+        background: rgba(14,165,233,.04);
+    }
+
+    .drop-zone.dragover {
+        border-color: var(--success);
+        background: rgba(16,185,129,.05);
+        transform: scale(1.01);
+    }
+
+    .drop-zone-icon {
+        width: 60px; height: 60px;
+        border-radius: var(--radius);
+        background: rgba(14,165,233,.1);
+        color: var(--accent);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        margin-bottom: 1.1rem;
+        transition: transform .2s, background .2s;
+    }
+
+    .drop-zone:hover .drop-zone-icon {
+        transform: translateY(-3px);
+        background: rgba(14,165,233,.15);
+    }
+
+    .drop-zone-title {
+        font-size: .9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: .35rem;
+    }
+
+    .drop-zone-sub {
+        font-size: .8125rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .file-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* ── Format pills ───────────────────────────────────────── */
+    .format-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-family: var(--mono);
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .04em;
+        padding: 4px 10px;
+        border-radius: 50px;
+        background: var(--panel);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        margin: 2px;
+    }
+
+    .format-pill.accent { background: rgba(14,165,233,.08); color: var(--accent); border-color: rgba(14,165,233,.2); }
+    .format-pill.green  { background: rgba(16,185,129,.08); color: var(--success); border-color: rgba(16,185,129,.2); }
+
+    /* ── File info bar (shown after selection) ──────────────── */
+    .file-info-bar {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: .875rem 1rem;
+        margin-top: .875rem;
+    }
+
+    .file-info-icon {
+        width: 36px; height: 36px;
+        background: rgba(16,185,129,.1);
+        color: var(--success);
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    .file-info-name {
+        font-family: var(--mono);
+        font-size: .8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .file-info-meta {
+        font-family: var(--mono);
+        font-size: .7rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    /* ── Progress bar ───────────────────────────────────────── */
+    .upload-progress-wrap {
+        display: none;
+        margin-top: .875rem;
+    }
+
+    .upload-progress-bar-track {
+        height: 5px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: .4rem;
+    }
+
+    .upload-progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-radius: 3px;
+        width: 0%;
+        transition: width .3s ease;
+    }
+
+    .upload-progress-label {
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: var(--text-muted);
+    }
+
+    /* ── Requirement items ──────────────────────────────────── */
+    .req-item {
+        display: flex;
+        gap: 10px;
+        padding: .75rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .req-item:last-child { border-bottom: none; }
+
+    .req-item-icon {
+        width: 28px; height: 28px;
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .8rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .req-item-label {
+        font-size: .8125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 2px;
+    }
+
+    .req-item-desc {
+        font-size: .75rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+    }
+
+    /* ── Code/sample block ──────────────────────────────────── */
+    .code-block {
+        font-family: var(--mono);
+        font-size: .72rem;
+        background: var(--navy);
+        color: #93c5fd;
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        overflow-x: auto;
+        white-space: pre;
+        line-height: 1.6;
+        border: 1px solid var(--navy-border);
+    }
+
+    .code-block::-webkit-scrollbar       { height: 4px; }
+    .code-block::-webkit-scrollbar-thumb { background: var(--navy-border); border-radius: 2px; }
+
+    /* Modal */
+    .modal-content {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        background: var(--panel-alt);
+        border-bottom: 1px solid var(--border);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-header h5 {
+        font-size: .9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    .modal-body  { padding: 1.5rem; font-size: .8375rem; color: var(--text-body); }
+    .modal-footer { border-top: 1px solid var(--border); padding: 1rem 1.5rem; gap: .5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ───────────────────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                   color:var(--text-primary);margin:0;">
+            <i class="bi bi-cloud-upload me-2" style="color:var(--accent);"></i>Upload &amp; Analyse
+        </h2>
+        <p style="font-size:.8125rem;color:var(--text-muted);margin:.2rem 0 0;">
+            Upload a CSV file to run ML-powered threat detection
+        </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-ghost" data-bs-toggle="modal" data-bs-target="#formatModal">
+            <i class="bi bi-info-circle"></i>CSV Format
+        </button>
+        <button class="btn btn-outline-primary" onclick="downloadSample()">
+            <i class="bi bi-download"></i>Sample CSV
+        </button>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- ── Upload card ─────────────────────────────────────── -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="section-icon"><i class="bi bi-file-earmark-arrow-up"></i></div>
+                <h5>Load Network Traffic Data</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+
+                    <!-- Drop zone -->
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-icon"><i class="bi bi-cloud-upload"></i></div>
+                        <div class="drop-zone-title">Drop your CSV file here</div>
+                        <div class="drop-zone-sub">or click anywhere in this area to browse</div>
+                        <div>
+                            <span class="format-pill accent"><i class="bi bi-filetype-csv"></i>CSV</span>
+                            <span class="format-pill green"><i class="bi bi-hdd"></i>Max 30 MB</span>
+                            <span class="format-pill"><i class="bi bi-table"></i>37 features</span>
+                        </div>
+                        <input type="file" name="file" accept=".csv" class="file-input" id="fileInput" required>
+                    </div>
+
+                    <!-- File info (post-selection) -->
+                    <div class="file-info-bar" id="fileInfoBar">
+                        <div class="file-info-icon"><i class="bi bi-file-earmark-check"></i></div>
+                        <div style="flex:1;min-width:0;">
+                            <div class="file-info-name" id="fileName">—</div>
+                            <div class="file-info-meta" id="fileMeta">—</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;"
+                                onclick="clearFile()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="upload-progress-wrap" id="progressWrap">
+                        <div class="upload-progress-bar-track">
+                            <div class="upload-progress-bar-fill" id="progressFill"></div>
+                        </div>
+                        <div class="upload-progress-label" id="progressLabel">Uploading… 0%</div>
+                    </div>
+
+                    <!-- Options row -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="predictionType" class="form-label">
+                                <i class="bi bi-gear me-1" style="color:var(--accent);"></i>Prediction Type
+                            </label>
+                            <select class="form-select" id="predictionType" name="predictionType">
+                                <option value="auto">Automatic (ML only)</option>
+                                <option value="hybrid">Hybrid (ML + Manual Review)</option>
+                                <option value="manual">Manual Analysis Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="batchSize" class="form-label">
+                                <i class="bi bi-layers me-1" style="color:var(--accent);"></i>Batch Size
+                            </label>
+                            <select class="form-select" id="batchSize" name="batchSize">
+                                <option value="100">100 rows</option>
+                                <option value="500" selected>500 rows</option>
+                                <option value="1000">1000 rows</option>
+                                <option value="all">All rows</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn"
+                                disabled style="padding:12px;font-size:.9375rem;">
+                            <i class="bi bi-rocket-takeoff me-1"></i>Start Analysis
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Requirements sidebar ────────────────────────────── -->
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <div class="section-icon"><i class="bi bi-list-check"></i></div>
+                <h5>File Requirements</h5>
+            </div>
+            <div class="card-body">
+
+                <div class="req-item">
+                    <div class="req-item-icon stat-icon-blue"><i class="bi bi-filetype-csv"></i></div>
+                    <div>
+                        <div class="req-item-label">File Format</div>
+                        <div class="req-item-desc">CSV only (.csv extension)</div>
+                    </div>
+                </div>
+
+                <div class="req-item">
+                    <div class="req-item-icon stat-icon-amber"><i class="bi bi-hdd"></i></div>
+                    <div>
+                        <div class="req-item-label">File Size</div>
+                        <div class="req-item-desc">Maximum 30 MB per upload</div>
+                    </div>
+                </div>
+
+                <div class="req-item">
+                    <div class="req-item-icon stat-icon-green"><i class="bi bi-table"></i></div>
+                    <div>
+                        <div class="req-item-label">Data Structure</div>
+                        <div class="req-item-desc">Exactly 37 numerical feature columns required</div>
+                    </div>
+                </div>
+
+                <div class="req-item">
+                    <div class="req-item-icon" style="background:rgba(99,102,241,.1);color:var(--info);">
+                        <i class="bi bi-check-square"></i>
+                    </div>
+                    <div>
+                        <div class="req-item-label">Column Names</div>
+                        <div class="req-item-desc">
+                            <span style="font-family:var(--mono);font-size:.7rem;">duration, src_bytes, dst_bytes, land…</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.15);
+                            border-radius:var(--radius);padding:.875rem;margin-top:1rem;
+                            font-size:.78rem;color:var(--text-body);display:flex;gap:8px;">
+                    <i class="bi bi-lightbulb-fill" style="color:var(--accent);flex-shrink:0;margin-top:1px;"></i>
+                    <span>Download the sample CSV to see the exact format required by the ML engine.</span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Format Modal ──────────────────────────────────────────── -->
+<div class="modal fade" id="formatModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5><i class="bi bi-info-circle" style="color:var(--accent);"></i>CSV Format Guide</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <p style="font-size:.8125rem;color:var(--text-muted);margin-bottom:1rem;">
+                    Your CSV must have exactly <strong>37 numerical columns</strong> in the following order:
+                </p>
+
+                <div class="code-block">duration,src_bytes,dst_bytes,land,wrong_fragment,urgent,hot,num_failed_logins,logged_in,num_compromised,root_shell,su_attempted,num_root,num_file_creations,num_shells,num_access_files,is_host_login,is_guest_login,count,srv_count,serror_rate,srv_serror_rate,rerror_rate,srv_rerror_rate,same_srv_rate,diff_srv_rate,srv_diff_host_rate,dst_host_count,dst_host_srv_count,dst_host_same_srv_rate,dst_host_diff_srv_rate,dst_host_same_src_port_rate,dst_host_srv_diff_host_rate,dst_host_serror_rate,dst_host_srv_serror_rate,dst_host_rerror_rate,dst_host_srv_rerror_rate</div>
+
+                <p style="font-size:.8125rem;font-weight:600;color:var(--text-primary);
+                           margin:1.25rem 0 .5rem;">Sample Data Row</p>
+                <div class="code-block">0,181,5450,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,8,8,0.00,0.00,0.00,0.00,1.00,0.00,0.00,9,9,1.00,0.00,0.11,0.00,0.00,0.00,0.00,0.00</div>
+
+                <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);
+                            border-radius:var(--radius);padding:.875rem 1rem;margin-top:1.25rem;
+                            font-size:.78rem;color:var(--text-body);display:flex;gap:8px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);flex-shrink:0;margin-top:1px;"></i>
+                    <span><strong>Important:</strong> Do <em>not</em> include protocol_type, service, flag, or label columns — the ML model predicts the attack type automatically.</span>
+                </div>
+
+                <p style="font-size:.8125rem;font-weight:600;color:var(--text-primary);margin:1.25rem 0 .75rem;">
+                    Key Feature Descriptions
+                </p>
+                <div style="display:grid;gap:.5rem;">
+                    <div style="display:flex;gap:8px;font-size:.78rem;">
+                        <span style="font-family:var(--mono);color:var(--accent);flex-shrink:0;min-width:120px;">duration</span>
+                        <span style="color:var(--text-muted);">Connection length in seconds</span>
+                    </div>
+                    <div style="display:flex;gap:8px;font-size:.78rem;">
+                        <span style="font-family:var(--mono);color:var(--accent);flex-shrink:0;min-width:120px;">src_bytes</span>
+                        <span style="color:var(--text-muted);">Bytes sent from source to destination</span>
+                    </div>
+                    <div style="display:flex;gap:8px;font-size:.78rem;">
+                        <span style="font-family:var(--mono);color:var(--accent);flex-shrink:0;min-width:120px;">dst_bytes</span>
+                        <span style="color:var(--text-muted);">Bytes sent from destination to source</span>
+                    </div>
+                    <div style="display:flex;gap:8px;font-size:.78rem;">
+                        <span style="font-family:var(--mono);color:var(--accent);flex-shrink:0;min-width:120px;">land</span>
+                        <span style="color:var(--text-muted);">1 if connection is to/from same host/port</span>
+                    </div>
+                    <div style="display:flex;gap:8px;font-size:.78rem;">
+                        <span style="font-family:var(--mono);color:var(--accent);flex-shrink:0;min-width:120px;">wrong_fragment</span>
+                        <span style="color:var(--text-muted);">Number of malformed packet fragments</span>
+                    </div>
+                    <div style="display:flex;gap:8px;font-size:.78rem;color:var(--text-faint);font-style:italic;">
+                        <span style="min-width:120px;">+ 32 more statistical network features…</span>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadSample()">
+                    <i class="bi bi-download me-1"></i>Download Sample
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const dropZone   = document.getElementById('dropZone');
+    const fileInput  = document.getElementById('fileInput');
+    const fileInfoBar= document.getElementById('fileInfoBar');
+    const uploadBtn  = document.getElementById('uploadBtn');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    const progressLabel= document.getElementById('progressLabel');
+
+    /* ── Drag & drop ──────────────────────────────────────── */
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', e => {
+        if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    /* ── File validation ──────────────────────────────────── */
+    function handleFile(file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            showInlineError('Only CSV files are accepted.'); return;
+        }
+        if (file.size > 30 * 1024 * 1024) {
+            showInlineError('File size must be under 30 MB.'); return;
+        }
+
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileMeta').textContent =
+            'Size: ' + formatSize(file.size) + '  ·  Type: text/csv';
+        fileInfoBar.style.display = 'flex';
+        uploadBtn.disabled = false;
+
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        fileInfoBar.style.display = 'none';
+        uploadBtn.disabled = true;
+        dropZone.classList.remove('dragover');
+    }
+
+    function formatSize(bytes) {
+        if (!bytes) return '0 B';
+        const u = ['B','KB','MB','GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+    }
+
+    function showInlineError(msg) {
+        const existing = document.getElementById('dropZoneError');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.id = 'dropZoneError';
+        el.className = 'alert alert-danger py-2 mt-2';
+        el.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${msg}`;
+        dropZone.insertAdjacentElement('afterend', el);
+        setTimeout(() => el.remove(), 4000);
+    }
+
+    /* ── Form submission with progress ───────────────────── */
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        progressWrap.style.display = 'block';
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="loading me-2"></span>Processing…';
+
+        let pct = 0;
+        const ticker = setInterval(() => {
+            pct = Math.min(pct + Math.random() * 12, 90);
+            setProgress(pct);
+        }, 220);
+
+        fetch(this.action || window.location.href, { method: 'POST', body: formData })
+            .then(response => {
+                clearInterval(ticker);
+                setProgress(100);
+                if (response.ok) {
+                    setTimeout(() => { window.location.href = response.url; }, 800);
+                } else { throw new Error('Upload failed'); }
+            })
+            .catch(() => {
+                clearInterval(ticker);
+                progressWrap.style.display = 'none';
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="bi bi-rocket-takeoff me-1"></i>Start Analysis';
+                showInlineError('Upload failed — please try again.');
+            });
+    });
+
+    function setProgress(pct) {
+        progressFill.style.width = pct + '%';
+        progressLabel.textContent = 'Processing… ' + Math.round(pct) + '%';
+    }
+
+    /* ── Sample CSV download ──────────────────────────────── */
+    function downloadSample() {
+        const csv = `duration,src_bytes,dst_bytes,land,wrong_fragment,urgent,hot,num_failed_logins,logged_in,num_compromised,root_shell,su_attempted,num_root,num_file_creations,num_shells,num_access_files,is_host_login,is_guest_login,count,srv_count,serror_rate,srv_serror_rate,rerror_rate,srv_rerror_rate,same_srv_rate,diff_srv_rate,srv_diff_host_rate,dst_host_count,dst_host_srv_count,dst_host_same_srv_rate,dst_host_diff_srv_rate,dst_host_same_src_port_rate,dst_host_srv_diff_host_rate,dst_host_serror_rate,dst_host_srv_serror_rate,dst_host_rerror_rate,dst_host_srv_rerror_rate
+0,181,5450,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,8,8,0.00,0.00,0.00,0.00,1.00,0.00,0.00,9,9,1.00,0.00,0.11,0.00,0.00,0.00,0.00,0.00
+0,239,486,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,8,8,0.00,0.00,0.00,0.00,1.00,0.00,0.00,19,19,1.00,0.00,0.05,0.00,0.00,0.00,0.00,0.00
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,123,1,1.00,1.00,0.00,0.00,0.01,0.00,1.00,255,1,0.00,1.00,1.00,0.00,1.00,1.00,0.00,0.00
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,0.00,0.00,1.00,1.00,1.00,0.00,0.00,30,255,1.00,0.00,0.03,0.00,0.00,0.00,1.00,1.00`;
+
+        const a = Object.assign(document.createElement('a'), {
+            href: URL.createObjectURL(new Blob([csv], { type:'text/csv' })),
+            download: 'sample_network_traffic.csv'
+        });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block title %}Create User — KAVACH IDS{% endblock %}
+
+{% block page_title %}Create New User{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Breadcrumb ──────────────────────────────────────────── */
+    .breadcrumb {
+        display: flex; align-items: center; gap: 6px;
+        font-family: var(--mono);
+        font-size: .72rem;
+        color: var(--text-faint);
+        margin: .25rem 0 0;
+        list-style: none; padding: 0;
+    }
+
+    .breadcrumb-item a {
+        color: var(--accent); text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover { text-decoration: underline; }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: '›'; color: var(--text-faint);
+    }
+
+    .breadcrumb-item.active { color: var(--text-muted); }
+
+    /* ── Password toggle (blended) ───────────────────────────── */
+    .pw-toggle {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-left: none;
+        color: var(--text-faint);
+        padding: 0 .75rem;
+        cursor: pointer;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        transition: color .15s;
+    }
+
+    .pw-toggle:hover { color: var(--accent); }
+
+    /* ── Strength bar ────────────────────────────────────────── */
+    .strength-track {
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+        margin: 5px 0 3px;
+        display: none;
+    }
+
+    .strength-fill {
+        height: 100%;
+        border-radius: 2px;
+        width: 0%;
+        transition: width .3s, background .3s;
+    }
+
+    /* ── Inline hints ────────────────────────────────────────── */
+    .field-hint {
+        font-family: var(--mono);
+        font-size: .68rem;
+        color: var(--text-faint);
+        margin-top: 4px;
+    }
+
+    .field-hint.ok  { color: var(--success); }
+    .field-hint.err { color: var(--danger); }
+    .field-hint.mid { color: var(--warning); }
+
+    /* ── Active status toggle ────────────────────────────────── */
+    .status-toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: .875rem 1rem;
+    }
+
+    .form-check-input[type="checkbox"] {
+        width: 2.25rem; height: 1.2rem;
+        border-radius: 1rem;
+        cursor: pointer;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--success);
+        border-color: var(--success);
+    }
+
+    .status-toggle-label {
+        font-size: .875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .status-toggle-sub {
+        font-size: .75rem;
+        color: var(--text-muted);
+        margin: 2px 0 0;
+    }
+
+    /* ── Info card ───────────────────────────────────────────── */
+    .info-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .info-card-header {
+        display: flex; align-items: center; gap: 8px;
+        font-size: .8125rem; font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .info-section-title {
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex; align-items: center; gap: 6px;
+        margin-bottom: .5rem;
+    }
+
+    .info-section-title i { color: var(--accent); }
+
+    .info-item {
+        display: flex; align-items: flex-start; gap: 7px;
+        font-size: .75rem;
+        color: var(--text-muted);
+        padding: .25rem 0;
+    }
+
+    .info-item i {
+        color: var(--success);
+        font-size: .7rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ───────────────────────────────────────────── -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                   color:var(--text-primary);margin:0;">
+            <i class="bi bi-person-plus me-2" style="color:var(--accent);"></i>Create New User
+        </h2>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_users') }}">Users</a></li>
+            <li class="breadcrumb-item active">Create User</li>
+        </ol>
+    </div>
+    <a href="{{ url_for('admin_users') }}" class="btn btn-ghost">
+        <i class="bi bi-arrow-left me-1"></i>Back to List
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <!-- ── Main form card ─────────────────────────────────── -->
+        <div class="card">
+            <div class="card-header">
+                <div class="section-icon"><i class="bi bi-person-gear"></i></div>
+                <h5>User Information</h5>
+                <span class="ms-auto chip">
+                    <i class="bi bi-shield-lock" style="font-size:.65rem;"></i>
+                    Admin only
+                </span>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="createUserForm" novalidate>
+                    <div class="row g-3">
+
+                        <!-- Username -->
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">
+                                Username <span style="color:var(--danger);">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username"
+                                   value="{{ form_data.username or '' }}"
+                                   placeholder="e.g. jsmith"
+                                   required pattern="[a-zA-Z0-9_]+" minlength="3"
+                                   autocomplete="off">
+                            <div class="field-hint" id="usernameHint">
+                                Min 3 chars · letters, numbers, underscores
+                            </div>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">
+                                Email Address <span style="color:var(--danger);">*</span>
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email"
+                                   value="{{ form_data.email or '' }}"
+                                   placeholder="user@example.com"
+                                   required autocomplete="off">
+                            <div class="field-hint" id="emailHint">Will be used for login</div>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">
+                                Password <span style="color:var(--danger);">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password"
+                                       required minlength="6"
+                                       placeholder="Minimum 6 characters"
+                                       autocomplete="new-password">
+                                <button class="pw-toggle" type="button"
+                                        onclick="togglePw('password','passwordIcon')">
+                                    <i class="bi bi-eye" id="passwordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="strength-track" id="strengthTrack">
+                                <div class="strength-fill" id="strengthFill"></div>
+                            </div>
+                            <div class="field-hint" id="passwordHint">Minimum 6 characters</div>
+                        </div>
+
+                        <!-- Confirm password -->
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label">
+                                Confirm Password <span style="color:var(--danger);">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirm_password"
+                                       name="confirm_password"
+                                       required minlength="6"
+                                       placeholder="Repeat password"
+                                       autocomplete="new-password">
+                                <button class="pw-toggle" type="button"
+                                        onclick="togglePw('confirm_password','confirmPasswordIcon')">
+                                    <i class="bi bi-eye" id="confirmPasswordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="field-hint" id="passwordMatchFeedback"></div>
+                        </div>
+
+                        <!-- Active status toggle -->
+                        <div class="col-12">
+                            <div class="status-toggle-wrap">
+                                <div class="form-check form-switch mb-0" style="padding:0;">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           id="is_active" name="is_active"
+                                           {% if form_data.is_active or not form_data %}checked{% endif %}
+                                           style="margin:0;">
+                                </div>
+                                <div>
+                                    <div class="status-toggle-label">
+                                        <label for="is_active" style="cursor:pointer;">
+                                            <i class="bi bi-person-check me-1"
+                                               style="color:var(--success);"></i>Active Account
+                                        </label>
+                                    </div>
+                                    <div class="status-toggle-sub">
+                                        Active users can log in immediately after creation
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Divider + Buttons -->
+                        <div class="col-12">
+                            <div style="height:1px;background:var(--border);margin:.5rem 0 1rem;"></div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                    <i class="bi bi-person-plus me-1"></i>Create User
+                                </button>
+                                <button type="reset" class="btn btn-ghost">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear
+                                </button>
+                                <a href="{{ url_for('admin_users') }}" class="btn btn-ghost"
+                                   style="color:var(--danger);">
+                                    <i class="bi bi-x-lg me-1"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── Info card ──────────────────────────────────────── -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <div class="section-icon"><i class="bi bi-info-circle"></i></div>
+                Admin Notes
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="info-section-title">
+                        <i class="bi bi-shield-check"></i>Security
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Passwords are hashed before storage
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Use strong passwords for better security
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Users can change their own password later
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="info-section-title">
+                        <i class="bi bi-gear"></i>Account Status
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Active users can log in immediately
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Inactive users are blocked from access
+                    </div>
+                    <div class="info-item">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Status can be toggled from the Users list
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    /* ── Password visibility ────────────────────────────────── */
+    function togglePw(fieldId, iconId) {
+        const f = document.getElementById(fieldId);
+        const i = document.getElementById(iconId);
+        const show = f.type === 'password';
+        f.type = show ? 'text' : 'password';
+        i.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+    }
+
+    /* ── Username validation ────────────────────────────────── */
+    document.getElementById('username').addEventListener('input', function () {
+        const v  = this.value;
+        const el = document.getElementById('usernameHint');
+        if (!v)               { el.textContent = 'Min 3 chars · letters, numbers, underscores'; el.className = 'field-hint'; return; }
+        if (v.length < 3)     { el.textContent = '✗ Too short (min 3 characters)'; el.className = 'field-hint err'; return; }
+        if (!/^[a-zA-Z0-9_]+$/.test(v)) { el.textContent = '✗ Only letters, numbers, underscores'; el.className = 'field-hint err'; return; }
+        el.textContent = '✓ Username looks good'; el.className = 'field-hint ok';
+        checkFormValidity();
+    });
+
+    /* ── Email hint ─────────────────────────────────────────── */
+    document.getElementById('email').addEventListener('input', function () {
+        const v  = this.value;
+        const el = document.getElementById('emailHint');
+        if (!v) { el.textContent = 'Will be used for login'; el.className = 'field-hint'; return; }
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        el.textContent = ok ? '✓ Valid email' : '✗ Enter a valid email address';
+        el.className   = ok ? 'field-hint ok' : 'field-hint err';
+        checkFormValidity();
+    });
+
+    /* ── Password strength ──────────────────────────────────── */
+    document.getElementById('password').addEventListener('input', function () {
+        const pw    = this.value;
+        const hint  = document.getElementById('passwordHint');
+        const track = document.getElementById('strengthTrack');
+        const fill  = document.getElementById('strengthFill');
+
+        if (!pw) {
+            hint.textContent = 'Minimum 6 characters'; hint.className = 'field-hint';
+            track.style.display = 'none'; checkFormValidity(); return;
+        }
+
+        let score = 0;
+        if (pw.length >= 6)  score++;
+        if (pw.length >= 10) score++;
+        if (/[a-z]/.test(pw)) score++;
+        if (/[A-Z]/.test(pw)) score++;
+        if (/[0-9]/.test(pw)) score++;
+        if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+        const levels = [
+            { lbl:'Weak',   cls:'err', color:'var(--danger)',  pct:17 },
+            { lbl:'Weak',   cls:'err', color:'var(--danger)',  pct:33 },
+            { lbl:'Fair',   cls:'mid', color:'var(--warning)', pct:50 },
+            { lbl:'Good',   cls:'ok',  color:'var(--success)', pct:67 },
+            { lbl:'Good',   cls:'ok',  color:'var(--success)', pct:83 },
+            { lbl:'Strong', cls:'ok',  color:'var(--success)', pct:100 },
+        ];
+        const l = levels[Math.min(score - 1, 5)] || levels[0];
+
+        track.style.display = 'block';
+        fill.style.width    = l.pct + '%';
+        fill.style.background = l.color;
+        hint.textContent = 'Strength: ' + l.lbl;
+        hint.className   = 'field-hint ' + l.cls;
+
+        checkMatch();
+        checkFormValidity();
+    });
+
+    /* ── Password match ─────────────────────────────────────── */
+    document.getElementById('confirm_password').addEventListener('input', function () {
+        checkMatch(); checkFormValidity();
+    });
+
+    function checkMatch() {
+        const pw  = document.getElementById('password').value;
+        const cpw = document.getElementById('confirm_password').value;
+        const el  = document.getElementById('passwordMatchFeedback');
+        if (!cpw) { el.textContent = ''; el.className = 'field-hint'; return; }
+        if (pw === cpw) { el.textContent = '✓ Passwords match'; el.className = 'field-hint ok'; }
+        else            { el.textContent = '✗ Passwords do not match'; el.className = 'field-hint err'; }
+    }
+
+    /* ── Enable submit only when valid ─────────────────────── */
+    function checkFormValidity() {
+        const username = document.getElementById('username').value;
+        const email    = document.getElementById('email').value;
+        const pw       = document.getElementById('password').value;
+        const cpw      = document.getElementById('confirm_password').value;
+
+        const valid =
+            username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username) &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+            pw.length >= 6 && pw === cpw;
+
+        document.getElementById('submitBtn').disabled = !valid;
+    }
+
+    /* ── Form submit ────────────────────────────────────────── */
+    document.getElementById('createUserForm').addEventListener('submit', function (e) {
+        const pw  = document.getElementById('password').value;
+        const cpw = document.getElementById('confirm_password').value;
+
+        if (pw !== cpw || pw.length < 6) { e.preventDefault(); return; }
+
+        const btn = document.getElementById('submitBtn');
+        btn.innerHTML = '<span class="loading me-2"></span>Creating…';
+        btn.disabled  = true;
+    });
+
+    /* ── Reset ──────────────────────────────────────────────── */
+    document.querySelector('button[type="reset"]').addEventListener('click', function () {
+        setTimeout(() => {
+            ['usernameHint','emailHint','passwordHint','passwordMatchFeedback'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = id === 'usernameHint' ? 'Min 3 chars · letters, numbers, underscores'
+                                         : id === 'emailHint'    ? 'Will be used for login'
+                                         : id === 'passwordHint' ? 'Minimum 6 characters' : '';
+                          el.className = 'field-hint'; }
+            });
+            document.getElementById('strengthTrack').style.display = 'none';
+            document.getElementById('strengthFill').style.width = '0%';
+            document.getElementById('submitBtn').disabled = true;
+        }, 50);
+    });
+
+    /* ── Auto-focus ─────────────────────────────────────────── */
+    window.addEventListener('load', () => document.getElementById('username').focus());
+</script>
+{% endblock %}

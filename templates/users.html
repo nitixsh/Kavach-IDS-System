@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}User Management — KAVACH IDS{% endblock %}
+
+{% block page_title %}User Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: var(--navy);
+        border: 1px solid var(--navy-border);
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono);
+        font-size: .75rem;
+        font-weight: 700;
+        color: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .filter-bar {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Modal overrides */
+    .modal-content {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+        background: var(--panel-alt);
+        border-bottom: 1px solid var(--border);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-header.danger {
+        background: rgba(244,63,94,.05);
+        border-bottom-color: rgba(244,63,94,.2);
+    }
+
+    .modal-header h5 {
+        font-size: .9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modal-header h5 i { color: var(--danger); }
+
+    .modal-body { padding: 1.5rem; font-size: .875rem; color: var(--text-body); }
+    .modal-footer {
+        border-top: 1px solid var(--border);
+        padding: 1rem 1.5rem;
+        gap: .5rem;
+    }
+
+    .btn-close { opacity: .5; }
+    .btn-close:hover { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ───────────────────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                   color:var(--text-primary);margin:0;">
+            <i class="bi bi-people me-2" style="color:var(--accent);"></i>User Management
+        </h2>
+        <p style="font-size:.8125rem;color:var(--text-muted);margin:.2rem 0 0;">
+            Manage system access, roles and account status
+        </p>
+    </div>
+    <a href="{{ url_for('admin_create_user') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i>Create User
+    </a>
+</div>
+
+<!-- ── Stat Cards ────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-blue"><i class="bi bi-people"></i></div>
+                <span style="font-family:var(--mono);font-size:.65rem;color:var(--text-faint);">TOTAL</span>
+            </div>
+            <div class="stat-number">{{ stats.total | default(0) }}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-green"><i class="bi bi-person-check"></i></div>
+                <span style="font-family:var(--mono);font-size:.65rem;color:var(--success);">ACTIVE</span>
+            </div>
+            <div class="stat-number" style="color:var(--success);">{{ stats.active | default(0) }}</div>
+            <div class="stat-label">Active Users</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-red"><i class="bi bi-person-x"></i></div>
+                <span style="font-family:var(--mono);font-size:.65rem;color:var(--danger);">INACTIVE</span>
+            </div>
+            <div class="stat-number" style="color:var(--danger);">{{ stats.inactive | default(0) }}</div>
+            <div class="stat-label">Inactive Users</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <div class="stat-icon stat-icon-amber"><i class="bi bi-calendar-plus"></i></div>
+                <span style="font-family:var(--mono);font-size:.65rem;color:var(--warning);">TODAY</span>
+            </div>
+            <div class="stat-number" style="color:var(--warning);">{{ stats.today_registered | default(0) }}</div>
+            <div class="stat-label">Registered Today</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Filters ───────────────────────────────────────────────── -->
+<div class="filter-bar">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+        <div class="section-icon"><i class="bi bi-funnel"></i></div>
+        <span style="font-size:.875rem;font-weight:600;color:var(--text-primary);">Filter &amp; Search</span>
+    </div>
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="search" class="form-label">Search</label>
+            <input type="text" name="search" id="search" class="form-control"
+                   placeholder="Username or email…" value="{{ filters.search }}">
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">All</option>
+                <option value="active"   {% if filters.status=='active'   %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if filters.status=='inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="sort" class="form-label">Sort By</label>
+            <select name="sort" id="sort" class="form-select">
+                <option value="created_at" {% if filters.sort=='created_at' %}selected{% endif %}>Date</option>
+                <option value="username"   {% if filters.sort=='username'   %}selected{% endif %}>Username</option>
+                <option value="email"      {% if filters.sort=='email'      %}selected{% endif %}>Email</option>
+                <option value="is_active"  {% if filters.sort=='is_active'  %}selected{% endif %}>Status</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="order" class="form-label">Order</label>
+            <select name="order" id="order" class="form-select">
+                <option value="desc" {% if filters.order=='desc' %}selected{% endif %}>Descending</option>
+                <option value="asc"  {% if filters.order=='asc'  %}selected{% endif %}>Ascending</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-search"></i>Search
+            </button>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-ghost" title="Clear filters">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- ── Users Table ───────────────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <div class="section-icon"><i class="bi bi-table"></i></div>
+        <h5>Users List</h5>
+        <span class="ms-auto chip">
+            <i class="bi bi-people" style="font-size:.65rem;"></i>
+            {{ total_users }} user{{ 's' if total_users != 1 }} found
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Registered</th>
+                        <th>Status</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <span style="font-family:var(--mono);font-size:.78rem;
+                                         color:var(--text-faint);">#{{ user.id }}</span>
+                        </td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="avatar">{{ user.username[0].upper() }}</div>
+                                <span style="font-weight:600;font-size:.875rem;">{{ user.username }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-family:var(--mono);font-size:.8125rem;
+                                         color:var(--text-muted);">{{ user.email }}</span>
+                        </td>
+                        <td>
+                            <span style="font-family:var(--mono);font-size:.75rem;color:var(--text-muted);">
+                                {{ user.created_at.split('.')[0] if '.' in user.created_at else user.created_at }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge badge-normal">● Active</span>
+                            {% else %}
+                            <span class="badge" style="background:rgba(100,116,139,.1);color:#64748b;
+                                border:1px solid rgba(100,116,139,.2);">● Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            {% if user.id != session.user_id %}
+                            <div style="display:inline-flex;gap:6px;">
+                                <form method="POST"
+                                      action="{{ url_for('admin_toggle_user_status', user_id=user.id) }}"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('{% if user.is_active %}Deactivate{% else %}Activate{% endif %} {{ user.username }}?')">
+                                    <button type="submit"
+                                            class="btn {% if user.is_active %}btn-ghost{% else %}btn-success{% endif %}"
+                                            style="padding:5px 12px;font-size:.78rem;"
+                                            title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %} user">
+                                        <i class="bi {% if user.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                                        {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                                <button class="btn btn-danger"
+                                        style="padding:5px 12px;font-size:.78rem;"
+                                        onclick="confirmDelete('{{ user.username }}', {{ user.id }})"
+                                        title="Delete user">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="badge badge-info">You</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div style="padding:3rem;text-align:center;">
+                                <div style="width:48px;height:48px;background:var(--panel-alt);border-radius:50%;
+                                            display:inline-flex;align-items:center;justify-content:center;
+                                            margin-bottom:.875rem;">
+                                    <i class="bi bi-inbox" style="font-size:1.2rem;color:var(--text-faint);"></i>
+                                </div>
+                                <p style="font-family:var(--mono);font-size:.78rem;
+                                           color:var(--text-muted);margin:0;">
+                                    No users found matching the applied filters
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── Delete Modal ──────────────────────────────────────────── -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header danger">
+                <h5>
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Confirm User Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:.5rem;">
+                    You are about to permanently delete
+                    <strong id="deleteUsername" style="font-family:var(--mono);color:var(--danger);"></strong>.
+                </p>
+                <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.2);
+                            border-radius:var(--radius);padding:.875rem 1rem;font-size:.8125rem;
+                            color:#9f1239;display:flex;align-items:center;gap:8px;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    This action is <strong>irreversible</strong> and will remove all associated data.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Delete User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(username, userId) {
+        document.getElementById('deleteUsername').textContent = username;
+        document.getElementById('deleteForm').action =
+            "{{ url_for('admin_delete_user', user_id=0) }}".replace('0', userId);
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    // Auto-submit on filter select change
+    ['sort','order','status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => el.closest('form').submit());
+    });
+
+    // Bootstrap tooltips
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            .forEach(el => new bootstrap.Tooltip(el));
+    });
+</script>
+{% endblock %}

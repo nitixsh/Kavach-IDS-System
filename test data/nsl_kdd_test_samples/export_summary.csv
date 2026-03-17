@@ -1,0 +1,8 @@
+attack_category,total_available,samples_exported,files_created,percentage_used
+Service Exploits,77735,500,10,0.64
+Botnet Activities,55490,500,10,0.9
+Port Scanning / Reconnaissance,10156,500,10,4.92
+Privilege Escalation,439,400,8,91.12
+DDoS Attacks,3040,500,10,16.45
+Brute Force Attacks,1468,500,10,34.06
+Normal,189,150,3,79.37

@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}Reports and Analysis - Network IDS{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-bar-graph"></i> Reports and Analysis</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('download_report', format='csv') }}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export Full CSV
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4 fade-in">
+    <div class="card-header">
+        <h5><i class="bi bi-funnel"></i> Filter and Search</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="attack_type" class="form-label">Attack Type</label>
+                <select name="attack_type" id="attack_type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for attack_type in attack_types %}
+                    <option value="{{ attack_type }}" {% if filters.attack_type==attack_type %}selected{% endif %}>
+                        {{ attack_type }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ filters.date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ filters.date_to }}">
+            </div>
+            <div class="col-md-3">
+                <label for="ip_address" class="form-label">IP Address</label>
+                <input type="text" name="ip_address" id="ip_address" class="form-control" placeholder="192.168.1.1"
+                    value="{{ filters.ip_address }}">
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-center"
+            style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-bar-chart display-6 mb-3"></i>
+                <h3>{{ summary_stats.total_records | default(0) }}</h3>
+                <p class="mb-0">Total Records</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-center"
+            style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-shield-exclamation display-6 mb-3"></i>
+                <h3>{{ summary_stats.threats_detected | default(0) }}</h3>
+                <p class="mb-0">Threats Detected</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-center"
+            style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-shield-check display-6 mb-3"></i>
+                <h3>{{ summary_stats.normal_traffic | default(0) }}</h3>
+                <p class="mb-0">Normal Traffic</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-center"
+            style="background: linear-gradient(135deg, #f39c12 0%, #d68910 100%); color: white;">
+            <div class="card-body">
+                <i class="bi bi-percent display-6 mb-3"></i>
+                <h3>{{ summary_stats.avg_confidence | default(0) }}%</h3>
+                <p class="mb-0">Average Confidence</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-graph-up"></i> Attack Types Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="trendsChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart"></i> Prediction Results</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="distributionChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Reports Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="bi bi-table"></i> Detailed Detection Reports (Last 500)</h5>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" id="pageSize" onchange="changePageSize()">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" placeholder="Search..." id="searchTable"
+                onkeyup="searchTable()">
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-hover mb-0" id="reportsTable">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th>ID</th>
+                        <th>Timestamp</th>
+                        <th>IP Address</th>
+                        <th>Prediction</th>
+                        <th>Attack Type</th>
+                        <th>Confidence</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for prediction in predictions %}
+                    <tr data-row="{{ loop.index0 }}">
+                        <td>#{{ prediction.id }}</td>
+                        <td>
+                            <small>{{ prediction.timestamp.split('.')[0] if '.' in prediction.timestamp else
+                                prediction.timestamp }}</small>
+                        </td>
+                        <td>
+                            <code>{{ prediction.ip_address }}</code>
+                        </td>
+                        <td>
+                            <span
+                                class="badge {% if prediction.prediction_result == 'Attack' %}bg-danger{% else %}bg-success{% endif %}">
+                                {{ prediction.prediction_result }}
+                            </span>
+                        </td>
+                        <td>
+                            <span
+                                class="badge {% if prediction.attack_type == 'Normal' %}bg-secondary{% else %}bg-warning{% endif %}">
+                                {{ prediction.attack_type }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ "%.1f"|format(prediction.confidence * 100) if prediction.confidence else "0.0" }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ prediction.prediction_source or 'batch' }}</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary"
+                                onclick="viewPredictionDetails({{ loop.index0 }})">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <small class="text-muted">
+                    Showing <span id="showingStart">1</span> to <span id="showingEnd">25</span>
+                    of <span id="totalRows">{{ predictions|length }}</span> results (last 500 records)
+                </small>
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="pagination">
+                    <!-- Pagination buttons will be generated here -->
+                </ul>
+            </nav>
+        </div>
+        {% if summary_stats.total_records > 500 %}
+        <div class="mt-2">
+            <small class="text-warning">
+                <i class="bi bi-info-circle"></i> Showing only the last 500 records of {{ summary_stats.total_records }}
+                total.
+                Use filters to refine results or export the full CSV.
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Detection Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Store predictions data and pagination variables
+    const predictionsData = {{ predictions| tojson }};
+    const attackTypesChartData = {{ attack_types_chart_data| tojson }};
+    const predictionResultsChartData = {{ prediction_results_chart_data| tojson }};
+
+    let currentPage = 1;
+    let pageSize = 25;
+    let filteredData = predictionsData;
+
+    // Initialize charts with server-side data
+    if (Object.keys(attackTypesChartData).length > 0) {
+        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+        new Chart(trendsCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(attackTypesChartData),
+                datasets: [{
+                    label: 'Cantidad',
+                    data: Object.values(attackTypesChartData),
+                    backgroundColor: [
+                        '#27ae60', '#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    if (Object.keys(predictionResultsChartData).length > 0) {
+        const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+        new Chart(distributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(predictionResultsChartData),
+                datasets: [{
+                    data: Object.values(predictionResultsChartData),
+                    backgroundColor: ['#e74c3c', '#27ae60']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // Pagination functions
+    function displayTable() {
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, filteredData.length);
+
+        // Hide all rows first
+        const allRows = document.querySelectorAll('#tableBody tr');
+        allRows.forEach(row => row.style.display = 'none');
+
+        // Show rows for current page
+        for (let i = startIndex; i < endIndex; i++) {
+            const dataIndex = filteredData[i].originalIndex;
+            const row = document.querySelector(`tr[data-row="${dataIndex}"]`);
+            if (row) row.style.display = '';
+        }
+
+        updatePaginationInfo();
+        generatePagination();
+    }
+
+    function updatePaginationInfo() {
+        const startIndex = filteredData.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+        const endIndex = Math.min(currentPage * pageSize, filteredData.length);
+
+        document.getElementById('showingStart').textContent = startIndex;
+        document.getElementById('showingEnd').textContent = endIndex;
+        document.getElementById('totalRows').textContent = filteredData.length;
+    }
+
+    function generatePagination() {
+        const totalPages = Math.ceil(filteredData.length / pageSize);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = '<a class="page-link" href="#" onclick="changePage(' + (currentPage - 1) + ')">Previous</a>';
+        pagination.appendChild(prevLi);
+
+        // Page numbers
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = '<a class="page-link" href="#" onclick="changePage(' + i + ')">' + i + '</a>';
+            pagination.appendChild(li);
+        }
+
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = '<a class="page-link" href="#" onclick="changePage(' + (currentPage + 1) + ')">Next</a>';
+        pagination.appendChild(nextLi);
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(filteredData.length / pageSize)) return;
+        currentPage = page;
+        displayTable();
+    }
+
+    function changePageSize() {
+        pageSize = parseInt(document.getElementById('pageSize').value);
+        currentPage = 1;
+        displayTable();
+    }
+
+    // Search function
+    function searchTable() {
+        const searchTerm = document.getElementById('searchTable').value.toLowerCase();
+
+        if (searchTerm === '') {
+            filteredData = predictionsData.map((item, index) => ({ ...item, originalIndex: index }));
+        } else {
+            filteredData = predictionsData
+                .map((item, index) => ({ ...item, originalIndex: index }))
+                .filter(item =>
+                    item.ip_address.toLowerCase().includes(searchTerm) ||
+                    item.attack_type.toLowerCase().includes(searchTerm) ||
+                    item.prediction_result.toLowerCase().includes(searchTerm) ||
+                    item.id.toString().includes(searchTerm)
+                );
+        }
+
+        currentPage = 1;
+        displayTable();
+    }
+
+    function viewPredictionDetails(index) {
+        const pred = predictionsData[index];
+        const modalBody = document.getElementById('detailModalBody');
+
+        let inputData = {};
+        try {
+            inputData = JSON.parse(pred.input_data || '{}');
+        } catch (e) {
+            inputData = {};
+        }
+
+        let html = '<div class="row">';
+        html += '<div class="col-md-6">';
+        html += '<h6>Detection Information</h6>';
+        html += '<table class="table table-sm">';
+        html += `<tr><td><strong>Prediction ID:</strong></td><td>#${pred.id}</td></tr>`;
+        html += `<tr><td><strong>Timestamp:</strong></td><td>${pred.timestamp}</td></tr>`;
+        html += `<tr><td><strong>IP de Origen:</strong></td><td>${pred.ip_address}</td></tr>`;
+        html += `<tr><td><strong>Tipo de Ataque:</strong></td><td><span class="badge ${pred.attack_type === 'Normal' ? 'bg-success' : 'bg-danger'}">${pred.attack_type}</span></td></tr>`;
+        html += `<tr><td><strong>Confianza:</strong></td><td>${(pred.confidence * 100).toFixed(1)}%</td></tr>`;
+        html += `<tr><td><strong>Fuente:</strong></td><td>${pred.prediction_source || 'batch'}</td></tr>`;
+        html += '</table></div>';
+
+        html += '<div class="col-md-6">';
+        html += '<h6>Network Features</h6>';
+        html += '<table class="table table-sm">';
+        Object.entries(inputData).slice(0, 6).forEach(([key, value]) => {
+            html += `<tr><td><strong>${key}:</strong></td><td>${value}</td></tr>`;
+        });
+        html += '</table></div></div>';
+
+        if (Object.keys(inputData).length > 0) {
+            html += '<div class="row mt-3">';
+            html += '<div class="col-12">';
+            html += '<h6>Datos de Red Completos</h6>';
+            html += `<pre class="bg-light p-3 rounded" style="max-height: 200px; overflow-y: auto;"><code>${JSON.stringify(inputData, null, 2)}</code></pre>`;
+            html += '</div></div>';
+        }
+
+        modalBody.innerHTML = html;
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize filtered data with original indices
+        filteredData = predictionsData.map((item, index) => ({ ...item, originalIndex: index }));
+
+        // Display initial table
+        displayTable();
+
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}
