@@ -1,1 +1,7 @@
 myenv
+models/*.pkl
+*.csv
+*.zip
+uploads/
+test data/
+__pycache__/
