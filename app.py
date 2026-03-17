@@ -13,6 +13,19 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+import os
+import gdown
+
+os.makedirs("models", exist_ok=True)
+
+model_path = "models/best_ids_model.pkl"
+
+if not os.path.exists(model_path):
+    print("Downloading ML model...")
+    url = "https://drive.google.com/uc?id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
+    gdown.download(url, model_path, quiet=False)
+    print("Model downloaded successfully!")
+    
 # Import your live prediction module
 from live_prediction import LiveIDSPredictor
 
