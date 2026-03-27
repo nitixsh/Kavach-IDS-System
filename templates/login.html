@@ -1,149 +1,602 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — KAVACH IDS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --white:#fff;--ink:#080c14;--sub:#4a5568;--muted:#718096;--faint:#a0aec0;
+  --bg:#f7f9fc;--border:#e2e8f0;
+  --accent:#1a47e8;--accent2:#6366f1;--accent-lt:#eef1fd;--accent-dk:#1239c4;
+  --success:#059669;--warn:#d97706;--danger:#dc2626;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --gsans:'Geist',sans-serif;
+  --display:'Bricolage Grotesque',sans-serif;
+  --serif:'Instrument Serif',serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth;height:100%}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
 
-{% block title %}Login — KAVACH IDS{% endblock %}
+/* When embedded as modal: no background pattern, transparent body */
+body.modal-mode {
+  background: transparent;
+  min-height: unset;
+}
 
-{% block page_title %}Authentication Portal{% endblock %}
+/* ── Background pattern (standalone mode only) ── */
+body:not(.modal-mode)::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(26,71,232,.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(99,102,241,.06) 0%, transparent 50%),
+    radial-gradient(circle,rgba(26,71,232,.04) 1px,transparent 1px);
+  background-size:100% 100%,100% 100%,28px 28px;
+  pointer-events:none;
+  z-index:0;
+}
 
-{% block content %}
-<div class="row justify-content-center align-items-center" style="min-height: 72vh;">
-    <div class="col-lg-4 col-md-6 col-sm-10">
+/* ── Navbar (hidden in modal mode) ── */
+.nav{
+  position:relative;z-index:10;
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(0,0,0,.07);
+}
+body.modal-mode .nav { display: none; }
 
-        <!-- Logo / Heading -->
-        <div class="text-center mb-4">
-            <div style="width:56px;height:56px;background:var(--navy);border-radius:14px;
-                        display:inline-flex;align-items:center;justify-content:center;
-                        box-shadow:0 0 0 1px var(--navy-border), 0 8px 24px rgba(0,0,0,.18);">
-                <i class="bi bi-shield-lock" style="font-size:1.6rem;color:var(--accent);"></i>
-            </div>
-            <h1 style="font-family:var(--mono);font-size:1.25rem;font-weight:600;
-                        color:var(--text-primary);margin-top:1rem;margin-bottom:.25rem;">
-                Secure Login
-            </h1>
-            <p style="font-size:0.8125rem;color:var(--text-muted);">
-                KAVACH IDS — Authorised personnel only
-            </p>
-        </div>
+.nav-inner{
+  max-width:1200px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;height:64px;
+}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-mark{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.nav-logo-mark svg{width:18px;height:18px}
+.nav-logo-name{font-family:var(--display);font-size:.9375rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.nav-logo-name span{color:var(--accent)}
+.nav-back{display:flex;align-items:center;gap:7px;font-size:.84rem;font-weight:500;color:var(--sub);text-decoration:none;padding:7px 14px;border-radius:8px;transition:color .15s,background .15s}
+.nav-back:hover{color:var(--ink);background:var(--border)}
+.nav-back svg{width:15px;height:15px}
 
-        <!-- Card -->
-        <div class="card" style="border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);">
+/* ── Main layout ── */
+.page{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:40px 20px;position:relative;z-index:1;
+}
+body.modal-mode .page {
+  padding: 0;
+  display: block;
+}
 
-            <!-- Card top stripe -->
-            <div style="height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));
-                        border-radius:var(--radius-lg) var(--radius-lg) 0 0;"></div>
+/* ── Card ── */
+.auth-card{
+  width:100%;max-width:480px;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:20px;overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+  animation:cIn .35s cubic-bezier(.16,1,.3,1) both;
+}
+/* In modal mode the card fills the iframe width with no extra box-shadow (parent adds it) */
+body.modal-mode .auth-card {
+  max-width: 100%;
+  border-radius: 20px;
+  box-shadow: none;
+  animation: none;
+}
+@keyframes cIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-            <div class="card-body" style="padding:2rem;">
+/* Gradient bar */
+.modal-bar{height:3px;background:linear-gradient(90deg,transparent,#1a47e8 30%,#6366f1 70%,transparent)}
 
-                <form method="POST" action="{{ url_for('login') }}" id="loginForm" novalidate>
+/* ── Tab bar ── */
+.auth-tabs{
+  display:grid;grid-template-columns:1fr 1fr;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+}
+.atab{
+  padding:15px 0;
+  font-family:var(--gsans);font-size:.9rem;font-weight:500;
+  color:var(--faint);background:none;border:none;cursor:pointer;
+  position:relative;transition:color .2s;
+}
+.atab.on{color:var(--ink);font-weight:700}
+.atab::after{
+  content:'';position:absolute;bottom:-1px;left:20%;right:20%;
+  height:2.5px;background:var(--accent);border-radius:2px;
+  transform:scaleX(0);transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.atab.on::after{transform:scaleX(1)}
 
-                    <!-- Username -->
-                    <div class="mb-4">
-                        <label for="username" class="form-label">
-                            <i class="bi bi-person me-1" style="color:var(--accent);"></i>Username
-                        </label>
-                        <input type="text" class="form-control" id="username" name="username"
-                               placeholder="Enter username or email" autocomplete="username" required>
-                    </div>
+/* ── Panel ── */
+.auth-panel{padding:26px 28px;display:none}
+.auth-panel.active{display:block;animation:pIn .25s ease both}
+@keyframes pIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-                    <!-- Password -->
-                    <div class="mb-4">
-                        <label for="password" class="form-label">
-                            <i class="bi bi-lock me-1" style="color:var(--accent);"></i>Password
-                        </label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="password" name="password"
-                                   placeholder="Enter password" autocomplete="current-password"
-                                   style="border-right:none;" required>
-                            <button class="btn btn-ghost" type="button" onclick="togglePassword()"
-                                    style="border:1px solid var(--border);border-left:none;
-                                           border-radius:0 var(--radius) var(--radius) 0;
-                                           padding:0 14px;background:var(--panel);">
-                                <i class="bi bi-eye" id="passwordToggle"
-                                   style="font-size:.9rem;color:var(--text-muted);"></i>
-                            </button>
-                        </div>
-                    </div>
+/* Panel titles */
+.ap-title{font-family:var(--serif);font-size:1.5rem;font-weight:400;letter-spacing:-.02em;color:var(--ink);margin-bottom:5px}
+.ap-sub{font-size:.8rem;color:var(--faint);display:flex;align-items:center;gap:6px;margin-bottom:18px}
+.ap-dot{width:7px;height:7px;border-radius:50%;background:#10b981;animation:blink 2s ease-in-out infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
-                    <!-- Error feedback zone -->
-                    <div id="formError" style="display:none;" class="alert alert-danger py-2 mb-3">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <span id="formErrorMsg"></span>
-                    </div>
+/* ── Social buttons ── */
+.soc{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:14px}
+.sbtn{
+  height:42px;background:var(--white);border:1.5px solid var(--border);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--gsans);font-size:.8rem;font-weight:500;color:var(--ink);
+  cursor:pointer;transition:border-color .15s,background .15s,transform .12s;text-decoration:none;
+}
+.sbtn:hover{border-color:#c5cfe0;background:var(--bg);transform:translateY(-1px)}
+.sbtn svg{width:17px;height:17px;flex-shrink:0}
 
-                    <!-- Submit -->
-                    <div class="d-grid mb-3">
-                        <button type="submit" class="btn btn-primary" id="loginBtn"
-                                style="padding:11px;font-size:.9375rem;">
-                            <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
-                        </button>
-                    </div>
+/* ── Divider ── */
+.or-l{display:flex;align-items:center;gap:10px;font-size:.73rem;color:var(--faint);font-weight:500;margin-bottom:14px}
+.or-l::before,.or-l::after{content:'';flex:1;height:1px;background:var(--border)}
 
-                </form>
+/* ── Error banner ── */
+.errb{display:none;align-items:center;gap:8px;background:#fef2f2;border:1px solid rgba(220,38,38,.18);border-radius:9px;padding:9px 12px;font-size:.79rem;color:var(--danger);margin-bottom:10px}
+.errb.show{display:flex;animation:shake .35s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.errb svg{width:14px;height:14px;flex-shrink:0}
 
-                <!-- Footer links -->
-                <div class="text-center" style="border-top:1px solid var(--border);padding-top:1.25rem;">
-                    <p style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:.5rem;">
-                        No account?
-                        <a href="{{ url_for('register') }}"
-                           style="color:var(--accent);font-weight:600;text-decoration:none;">
-                            Request access
-                        </a>
-                    </p>
-                    <div style="display:inline-flex;align-items:center;gap:6px;
-                                font-family:var(--mono);font-size:0.7rem;color:var(--text-faint);
-                                background:var(--panel-alt);border:1px solid var(--border);
-                                border-radius:50px;padding:4px 12px;">
-                        <i class="bi bi-shield-check" style="color:var(--success);"></i>
-                        TLS 1.3 Encrypted Connection
-                    </div>
-                </div>
+/* ── Fields ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fg{margin-bottom:12px}
+.fl{display:flex;align-items:center;justify-content:space-between;font-size:.8rem;font-weight:600;color:var(--ink);margin-bottom:5px}
+.fl a{font-size:.77rem;font-weight:500;color:var(--accent);text-decoration:none}
+.fl a:hover{text-decoration:underline}
+.fl-req{color:var(--accent);font-size:.85em;margin-left:2px}
+.fw{position:relative}
+.fi-input{
+  width:100%;height:44px;padding:0 13px;
+  background:var(--white);border:1.5px solid var(--border);border-radius:10px;
+  font-family:var(--gsans);font-size:.9rem;color:var(--ink);
+  outline:none;transition:border-color .18s,box-shadow .18s;
+  -webkit-appearance:none;
+}
+.fi-input::placeholder{color:#bdc5d1}
+.fi-input:hover{border-color:#c5cfe0}
+.fi-input:focus{border-color:var(--accent);box-shadow:0 0 0 3.5px rgba(26,71,232,.1)}
+.fi-input.err{border-color:var(--danger);background:#fef2f2}
+.fi-input.ok{border-color:var(--success)}
+.fh{font-size:.71rem;color:var(--faint);margin-top:3px;line-height:1.4}
+.fh.err{color:var(--danger)}.fh.ok{color:var(--success)}
+.eyeb{position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--faint);padding:2px;display:flex;align-items:center;transition:color .15s}
+.eyeb:hover{color:var(--sub)}
+.eyeb svg{width:17px;height:17px}
 
-            </div>
-        </div>
+/* ── Password strength ── */
+.strw{margin-top:5px;display:none}
+.strbars{display:flex;gap:3px;margin-bottom:2px}
+.sbar{flex:1;height:3px;border-radius:3px;background:var(--border);transition:background .3s}
+.sbar.wk{background:#e74c3c}.sbar.fr{background:#f39c12}.sbar.gd{background:#27ae60}.sbar.st{background:var(--accent)}
+.strlbl{font-size:.68rem;font-weight:600;color:var(--faint);transition:color .3s}
 
-        <!-- Version tag -->
-        <div class="text-center mt-3">
-            <span style="font-family:var(--mono);font-size:0.68rem;color:var(--text-faint);">
-                KAVACH IDS v2.0 &nbsp;·&nbsp; EPG Security Platform
-            </span>
-        </div>
+/* ── Checkbox ── */
+.rem-row{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--sub);margin-bottom:16px;cursor:pointer}
+.rem-row input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.chk-g{margin-bottom:12px;display:flex;flex-direction:column;gap:7px}
+.chk-r{display:flex;align-items:flex-start;gap:8px;font-size:.79rem;color:var(--sub);cursor:pointer;line-height:1.45}
+.chk-r input[type=checkbox]{width:15px;height:15px;flex-shrink:0;margin-top:2px;accent-color:var(--accent);cursor:pointer}
+.chk-r a{color:var(--accent);text-decoration:none;font-weight:500}
+.chk-r a:hover{text-decoration:underline}
 
+/* ── Submit button ── */
+.bgo{
+  width:100%;height:44px;background:var(--accent);border:none;border-radius:10px;
+  font-family:var(--gsans);font-size:.9rem;font-weight:600;color:#fff;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  position:relative;overflow:hidden;
+  transition:background .18s,transform .12s,box-shadow .18s;
+  box-shadow:0 2px 8px rgba(26,71,232,.26);margin-bottom:12px;
+}
+.bgo::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,transparent 60%);pointer-events:none}
+.bgo::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transition:left .5s;pointer-events:none}
+.bgo:hover::after{left:140%}
+.bgo:hover{background:var(--accent-dk);transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,71,232,.3)}
+.bgo:active{transform:translateY(0)}
+.bgo:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.bgo svg{width:16px;height:16px}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .65s linear infinite;display:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Switch row ── */
+.sw-row{text-align:center;font-size:.8rem;color:var(--faint)}
+.sw-lnk{color:var(--accent);font-weight:600;cursor:pointer;background:none;border:none;font-family:var(--gsans);font-size:.8rem;padding:0}
+.sw-lnk:hover{text-decoration:underline}
+
+/* ── Trust footer ── */
+.auth-foot{
+  padding:12px 28px;background:var(--bg);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;
+}
+.tri{display:flex;align-items:center;gap:4px;font-size:.67rem;color:var(--faint);font-weight:500;font-family:var(--gsans)}
+.tri svg{width:12px;height:12px}
+
+/* ── Footer (hidden in modal mode) ── */
+.page-foot{
+  position:relative;z-index:1;
+  text-align:center;padding:20px;
+  font-family:var(--mono);font-size:.72rem;color:var(--faint);
+}
+.page-foot a{color:var(--faint);text-decoration:none;transition:color .15s}
+.page-foot a:hover{color:var(--sub)}
+body.modal-mode .page-foot { display: none; }
+
+/* ── Responsive ── */
+@media(max-width:520px){
+  .auth-panel{padding:20px 18px}
+  .auth-foot{padding:10px 18px}
+  .two-col{grid-template-columns:1fr}
+  .soc{grid-template-columns:1fr}
+  .nav-inner{padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Navbar (hidden when in modal mode) ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-mark">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#fff" opacity=".9"/>
+          <path d="M9 12l2 2 4-4" stroke="#0d1117" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="nav-logo-name">KAVACH <span>IDS</span></span>
+    </a>
+    <a href="/" class="nav-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+      Back to home
+    </a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<main class="page">
+  <div class="auth-card">
+    <div class="modal-bar"></div>
+
+    <!-- Tab bar -->
+    <div class="auth-tabs">
+      <button class="atab" id="tab-login" onclick="showTab('login')">Sign in</button>
+      <button class="atab" id="tab-reg" onclick="showTab('reg')">Create account</button>
     </div>
-</div>
+
+    <!-- ══ LOGIN PANEL ══ -->
+    <div class="auth-panel" id="panel-login">
+      <div class="soc">
+        <a href="/auth/google" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285f4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fbbc04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ea4335"/></svg>
+          Google
+        </a>
+        <a href="/auth/github" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          GitHub
+        </a>
+        <a href="/auth/microsoft" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="10.5" height="10.5" fill="#f25022"/><rect x="12.5" y="1" width="10.5" height="10.5" fill="#7fba00"/><rect x="1" y="12.5" width="10.5" height="10.5" fill="#00a4ef"/><rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#ffb900"/></svg>
+          Microsoft
+        </a>
+      </div>
+      <div class="or-l">or continue with email</div>
+
+      <div class="errb" id="l-err">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span id="l-em"></span>
+      </div>
+
+      <form id="lForm" novalidate>
+        <div class="fg">
+          <label class="fl" for="lu">Username or email</label>
+          <div class="fw">
+            <input class="fi-input" type="text" id="lu" name="username" placeholder="Enter username or email" autocomplete="username" spellcheck="false">
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl" for="lp">Password <a href="/forgot-password">Forgot password?</a></label>
+          <div class="fw">
+            <input class="fi-input" type="password" id="lp" name="password" placeholder="Enter your password" autocomplete="current-password" style="padding-right:38px">
+            <button type="button" class="eyeb" onclick="tE('lp','lei')">
+              <svg id="lei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <label class="rem-row">
+          <input type="checkbox" name="remember">Keep me signed in for 30 days
+        </label>
+        <button type="submit" class="bgo" id="lb">
+          <span id="lbt" style="display:flex;align-items:center;gap:7px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign in
+          </span>
+          <div class="spin" id="lsp"></div>
+        </button>
+      </form>
+      <div class="sw-row">No account? <button class="sw-lnk" onclick="showTab('reg')">Create one free</button></div>
+    </div>
+
+    <!-- ══ REGISTER PANEL ══ -->
+    <div class="auth-panel" id="panel-reg">
+      <div class="soc">
+        <a href="/auth/google" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285f4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fbbc04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ea4335"/></svg>
+          Google
+        </a>
+        <a href="/auth/github" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          GitHub
+        </a>
+        <a href="/auth/microsoft" class="sbtn">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="10.5" height="10.5" fill="#f25022"/><rect x="12.5" y="1" width="10.5" height="10.5" fill="#7fba00"/><rect x="1" y="12.5" width="10.5" height="10.5" fill="#00a4ef"/><rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#ffb900"/></svg>
+          Microsoft
+        </a>
+      </div>
+      <div class="or-l">or sign up with email</div>
+
+      <div class="errb" id="r-err">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span id="r-em"></span>
+      </div>
+
+      <form id="rForm" novalidate>
+        <div class="two-col">
+          <div class="fg">
+            <label class="fl" for="ru">Username<span class="fl-req">*</span></label>
+            <div class="fw">
+              <input class="fi-input" type="text" id="ru" name="username" placeholder="Min 3 chars" autocomplete="username" spellcheck="false" oninput="vU(this)">
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="rmail">Email<span class="fl-req">*</span></label>
+            <div class="fw">
+              <input class="fi-input" type="email" id="rmail" name="email" placeholder="you@example.com" autocomplete="email" spellcheck="false" oninput="vMail(this)">
+            </div>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl" for="rp">Password<span class="fl-req">*</span></label>
+          <div class="fw">
+            <input class="fi-input" type="password" id="rp" name="password" placeholder="Create a strong password" autocomplete="new-password" style="padding-right:38px" oninput="evS(this.value);chM()">
+            <button type="button" class="eyeb" onclick="tE('rp','rei1')">
+              <svg id="rei1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="strw" id="sw">
+            <div class="strbars">
+              <div class="sbar" id="s1"></div><div class="sbar" id="s2"></div>
+              <div class="sbar" id="s3"></div><div class="sbar" id="s4"></div>
+            </div>
+            <span class="strlbl" id="sl"></span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl" for="rc">Confirm password<span class="fl-req">*</span></label>
+          <div class="fw">
+            <input class="fi-input" type="password" id="rc" name="confirm_password" placeholder="Repeat your password" autocomplete="new-password" style="padding-right:38px" oninput="chM()">
+            <button type="button" class="eyeb" onclick="tE('rc','rei2')">
+              <svg id="rei2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="fh" id="mh"></div>
+        </div>
+        <div class="chk-g">
+          <label class="chk-r">
+            <input type="checkbox" id="rt" required>
+            I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a><span style="color:var(--accent)"> *</span>
+          </label>
+          <label class="chk-r">
+            <input type="checkbox" name="updates">Send me security updates
+          </label>
+        </div>
+        <button type="submit" class="bgo" id="rb">
+          <span id="rbt" style="display:flex;align-items:center;gap:7px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Create account — it's free
+          </span>
+          <div class="spin" id="rsp"></div>
+        </button>
+      </form>
+      <div class="sw-row">Already have an account? <button class="sw-lnk" onclick="showTab('login')">Sign in</button></div>
+    </div>
+
+    <!-- Trust footer -->
+    <div class="auth-foot">
+      <div class="tri">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        End-to-end encrypted
+      </div>
+    </div>
+  </div>
+</main>
 
 <script>
-    function togglePassword() {
-        const field = document.getElementById('password');
-        const icon  = document.getElementById('passwordToggle');
-        const isHidden = field.type === 'password';
-        field.type = isHidden ? 'text' : 'password';
-        icon.classList.toggle('bi-eye', !isHidden);
-        icon.classList.toggle('bi-eye-slash', isHidden);
-    }
+    
+/* ══════════════════════════════════════
+   MODAL MODE DETECTION
+   If this page is loaded inside the parent's iframe (via ?modal=1),
+   we hide our own nav/footer and communicate back via postMessage.
+   ══════════════════════════════════════ */
+const IS_MODAL = (function() {
+  const params = new URLSearchParams(window.location.search);
+  const inFrame = (window.self !== window.top);
+  return params.get('modal') === '1' || inFrame;
+})();
 
-    function showError(msg) {
-        const box = document.getElementById('formError');
-        document.getElementById('formErrorMsg').textContent = msg;
-        box.style.display = 'flex';
-    }
+if (IS_MODAL) {
+  document.body.classList.add('modal-mode');
+}
 
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
+/* Notify parent of tab changes & trigger resize */
+function notifyParent(msg) {
+  if (IS_MODAL) {
+    try { window.parent.postMessage(msg, '*'); } catch(e) {}
+  }
+}
 
-        if (username.length < 3) {
-            e.preventDefault();
-            showError('Username must be at least 3 characters.');
-            return false;
-        }
-        if (password.length < 6) {
-            e.preventDefault();
-            showError('Password must be at least 6 characters.');
-            return false;
-        }
+/* ── Tab switching ── */
+function showTab(tab) {
+  const isLogin = tab === 'login';
 
-        const btn = document.getElementById('loginBtn');
-        btn.innerHTML = '<span class="loading"></span> Authenticating…';
-        btn.disabled = true;
-    });
+  document.getElementById('tab-login').classList.toggle('on', isLogin);
+  document.getElementById('tab-reg').classList.toggle('on', !isLogin);
+  document.getElementById('panel-login').classList.toggle('active', isLogin);
+  document.getElementById('panel-reg').classList.toggle('active', !isLogin);
+
+  if (IS_MODAL) {
+    // Tell parent to update URL + title
+    notifyParent(isLogin ? 'kavach:tab:login' : 'kavach:tab:register');
+    // Ask parent to resize iframe
+    setTimeout(() => notifyParent('kavach:resize'), 50);
+  } else {
+    // Standalone: update URL normally
+    history.replaceState(null, '', isLogin ? '/login' : '/register');
+    document.title = isLogin ? 'Sign in — KAVACH IDS' : 'Create account — KAVACH IDS';
+  }
+}
+
+/* ── Read URL on load ── */
+(function(){
+  const path = window.location.pathname;
+  const hash = window.location.search;
+  if (path === '/register' || path === '/signup') {
+    showTab('reg');
+  } else {
+    showTab('login');
+  }
+})();
+
+/* ── Eye toggle ── */
+function tE(fid, iid) {
+  const f = document.getElementById(fid), i = document.getElementById(iid);
+  const v = f.type === 'password';
+  f.type = v ? 'text' : 'password';
+  i.innerHTML = v
+    ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" fill="none"/>`
+    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+}
+
+/* ── Password strength ── */
+function evS(v) {
+  const w = document.getElementById('sw'), l = document.getElementById('sl');
+  const b = [1,2,3,4].map(n => document.getElementById('s'+n));
+  if(!v){ w.style.display='none'; return; }
+  w.style.display = 'block';
+  const s = [v.length>=8, /[A-Z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+  const m = [{c:'',t:'',col:'var(--border)'},{c:'wk',t:'Weak',col:'#e74c3c'},{c:'fr',t:'Fair',col:'#f39c12'},{c:'gd',t:'Good',col:'#27ae60'},{c:'st',t:'Strong',col:'var(--accent)'}];
+  b.forEach((bar,i) => { bar.className = 'sbar' + (i < s ? ' ' + m[s].c : ''); });
+  l.textContent = m[s].t; l.style.color = m[s].col;
+  notifyParent('kavach:resize');
+}
+
+/* ── Confirm match ── */
+function chM() {
+  const p = document.getElementById('rp').value, c = document.getElementById('rc'), h = document.getElementById('mh');
+  if(!c.value){ h.textContent=''; c.classList.remove('ok','err'); return; }
+  const ok = p === c.value;
+  h.textContent = ok ? '✓ Passwords match' : '✗ Passwords do not match';
+  h.className = 'fh ' + (ok ? 'ok' : 'err');
+  c.classList.toggle('ok', ok); c.classList.toggle('err', !ok);
+}
+
+/* ── Username validation ── */
+function vU(el) {
+  const h = document.getElementById('uh'), ok = /^[a-zA-Z0-9_]{3,}$/.test(el.value.trim());
+  if(!el.value){ h.textContent='Min 3 chars'; h.className='fh'; el.classList.remove('ok','err'); return; }
+  if(ok){ h.textContent='✓ Looks good'; h.className='fh ok'; el.classList.add('ok'); el.classList.remove('err'); }
+  else{ h.textContent='Letters, numbers, _ only'; h.className='fh err'; el.classList.add('err'); el.classList.remove('ok'); }
+}
+
+/* ── Email validation ── */
+function vMail(el) {
+  const h = document.getElementById('eh'), ok = /\S+@\S+\.\S+/.test(el.value.trim());
+  if(!el.value){ h.textContent="We'll never share this"; h.className='fh'; el.classList.remove('ok','err'); return; }
+  if(ok){ h.textContent='✓ Valid email'; h.className='fh ok'; el.classList.add('ok'); el.classList.remove('err'); }
+  else{ h.textContent='Enter a valid email'; h.className='fh err'; el.classList.add('err'); el.classList.remove('ok'); }
+}
+
+/* ── Show/hide error banner ── */
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.classList.add('show');
+  document.getElementById(id.replace('-err','-em')).textContent = msg;
+  notifyParent('kavach:resize');
+}
+function hideErr(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ── Login submit ── */
+document.getElementById('lForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const u = document.getElementById('lu').value.trim(), p = document.getElementById('lp').value;
+  hideErr('l-err');
+  if(u.length < 3) return showErr('l-err', 'Please enter your username or email.');
+  if(p.length < 6) return showErr('l-err', 'Password must be at least 6 characters.');
+  const btn = document.getElementById('lb'); btn.disabled = true;
+  document.getElementById('lbt').style.display = 'none';
+  document.getElementById('lsp').style.display = 'block';
+  const f = document.createElement('form'); f.method = 'POST'; f.action = '/login';
+  [['username', u], ['password', p]].forEach(([n, v]) => {
+    const i = document.createElement('input'); i.type='hidden'; i.name=n; i.value=v; f.appendChild(i);
+  });
+  document.body.appendChild(f); f.submit();
+});
+
+/* ── Register submit ── */
+document.getElementById('rForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const u  = document.getElementById('ru').value.trim(),
+        em = document.getElementById('rmail').value.trim(),
+        p  = document.getElementById('rp').value,
+        c  = document.getElementById('rc').value,
+        t  = document.getElementById('rt').checked;
+  hideErr('r-err');
+  if(u.length < 3) return showErr('r-err', 'Username must be at least 3 characters.');
+  if(!/\S+@\S+\.\S+/.test(em)) return showErr('r-err', 'Please enter a valid email address.');
+  if(p.length < 8) return showErr('r-err', 'Password must be at least 8 characters.');
+  if(p !== c) return showErr('r-err', 'Passwords do not match.');
+  if(!t) return showErr('r-err', 'Please accept the Terms of Service.');
+  const btn = document.getElementById('rb'); btn.disabled = true;
+  document.getElementById('rbt').style.display = 'none';
+  document.getElementById('rsp').style.display = 'block';
+  const f = document.createElement('form'); f.method = 'POST'; f.action = '/register';
+  [['username', u], ['email', em], ['password', p], ['confirm_password', c], ['terms', '1']].forEach(([n, v]) => {
+    const i = document.createElement('input'); i.type='hidden'; i.name=n; i.value=v; f.appendChild(i);
+  });
+  document.body.appendChild(f); f.submit();
+});
 </script>
-{% endblock %}
+</body>
+</html>

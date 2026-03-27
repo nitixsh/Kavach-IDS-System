@@ -15,6 +15,22 @@ import subprocess
 import platform
 import re
 
+# ── Email alert notifications ────────────────────────────────────────────────
+try:
+    from threat_alerter import (
+        send_threat_alert,
+        send_startup_notification,
+        send_auto_block_notification,
+    )
+    ALERTER_AVAILABLE = True
+    print("✅ Threat email alerter loaded")
+except ImportError as e:
+    print(f"⚠️ Threat alerter not available: {e}")
+    ALERTER_AVAILABLE = False
+    def send_threat_alert(*a, **kw): pass
+    def send_startup_notification(): pass
+    def send_auto_block_notification(*a, **kw): pass
+
 # Import ML prediction system and feature extractor
 try:
     from live_prediction import LiveIDSPredictor
@@ -196,6 +212,8 @@ def save_live_prediction_to_db(
                 # Then apply firewall block
                 if block_ip_firewall(ip_address):
                     print(f"\n🚫 AUTO-BLOCKED: {ip_address} - {attack_type} ({attack_count} attacks)")
+                    # ── Email notification for auto-block ────────────────────
+                    send_auto_block_notification(ip_address, attack_type, attack_count)
                 else:
                     print(f"\n⚠️ DATABASE BLOCKED but FIREWALL FAILED: {ip_address}")
                     # Rollback database if firewall failed
@@ -627,6 +645,23 @@ def detect_ddos_attacks(packet):
         print(f" ICMP/sec       : {ddos_tracker[key]['icmp_count']}")
         print(f" Classification : DDoS Attacks")
         print(f"{'='*70}\n")
+
+        # ── Email alert ──────────────────────────────────────────────────────
+        send_threat_alert(
+            attack_type = "DDoS Attacks",
+            src_ip      = str(list(ddos_tracker[key]['sources'])[0]) if ddos_tracker[key]['sources'] else "Unknown",
+            dst_ip      = dst_ip,
+            protocol    = "TCP/SYN" if syn_flood else "UDP" if udp_flood else "ICMP",
+            confidence  = "High",
+            details     = {
+                "Sub-type":    attack_type,
+                "SYN/sec":     ddos_tracker[key]['syn_count'],
+                "UDP/sec":     ddos_tracker[key]['udp_count'],
+                "ICMP/sec":    ddos_tracker[key]['icmp_count'],
+                "Sources":     len(ddos_tracker[key]['sources']),
+                "Distributed": "Yes" if distributed else "No",
+            },
+        )
         return True
     
     return False
@@ -684,6 +719,20 @@ def detect_brute_force_attacks(packet):
             print(f" Attempts/min   : {brute_force_tracker[key]['attempts']}")
             print(f" Classification : Brute Force Attacks")
             print(f"{'='*70}\n")
+
+            # ── Email alert ──────────────────────────────────────────────────
+            send_threat_alert(
+                attack_type = "Brute Force Attacks",
+                src_ip      = src_ip,
+                dst_ip      = dst_ip,
+                protocol    = "TCP",
+                confidence  = "High",
+                details     = {
+                    "Target Service": service_names.get(dst_port, "Unknown"),
+                    "Target Port":    dst_port,
+                    "Attempts/min":   brute_force_tracker[key]['attempts'],
+                },
+            )
             return True
     
     return False
@@ -748,6 +797,19 @@ def detect_port_scanning(packet):
             print(f" Classification : Port Scanning / Reconnaissance")
             print(f"{'='*70}\n")
             
+            # ── Email alert ──────────────────────────────────────────────────
+            send_threat_alert(
+                attack_type = "Port Scanning / Reconnaissance",
+                src_ip      = src_ip,
+                dst_ip      = dst_ip,
+                protocol    = "TCP",
+                confidence  = "Medium",
+                details     = {
+                    "Ports Scanned": str(sorted(list(port_scan_tracker[key]["ports"]))),
+                    "Duration":      f"{time_elapsed:.1f}s",
+                },
+            )
+
             # Reset for next scan detection
             port_scan_tracker[key]["ports"] = set()
             port_scan_tracker[key]["first_scan"] = now
@@ -804,6 +866,19 @@ def detect_botnet_activities(packet):
             print(f" Connections    : {botnet_tracker[key]['connections']}/min")
             print(f" Classification : Botnet Activities")
             print(f"{'='*70}\n")
+
+            # ── Email alert ──────────────────────────────────────────────────
+            send_threat_alert(
+                attack_type = "Botnet Activities",
+                src_ip      = src_ip,
+                dst_ip      = dst_ip,
+                protocol    = "TCP",
+                confidence  = "High",
+                details     = {
+                    "C&C Port":    f"{dst_port} ({port_purposes.get(dst_port,'Unknown')})",
+                    "Connections/min": botnet_tracker[key]['connections'],
+                },
+            )
             return True
     
     return False
@@ -867,6 +942,21 @@ def detect_service_exploits(packet):
             print(f" Large Payloads : {exploit_tracker[key]['large_packets']}")
             print(f" Classification : Service Exploits")
             print(f"{'='*70}\n")
+
+            # ── Email alert ──────────────────────────────────────────────────
+            send_threat_alert(
+                attack_type = "Service Exploits",
+                src_ip      = src_ip,
+                dst_ip      = dst_ip,
+                protocol    = "TCP",
+                confidence  = "High",
+                details     = {
+                    "Target Service": service_names.get(dst_port, "Unknown"),
+                    "Target Port":    dst_port,
+                    "Exploit Attempts": exploit_tracker[key]['attempts'],
+                    "Large Payloads": exploit_tracker[key]['large_packets'],
+                },
+            )
             return True
     
     return False
@@ -922,6 +1012,20 @@ def detect_privilege_escalation(packet):
             print(f" Auth Attempts  : {priv_esc_tracker[key]['auth_attempts']}")
             print(f" Classification : Privilege Escalation")
             print(f"{'='*70}\n")
+
+            # ── Email alert ──────────────────────────────────────────────────
+            send_threat_alert(
+                attack_type = "Privilege Escalation",
+                src_ip      = src_ip,
+                dst_ip      = dst_ip,
+                protocol    = "TCP",
+                confidence  = "High",
+                details     = {
+                    "Auth Service":  auth_services.get(dst_port, "Unknown"),
+                    "Target Port":   dst_port,
+                    "Auth Attempts": priv_esc_tracker[key]['auth_attempts'],
+                },
+            )
             return True
     
     return False
@@ -1167,6 +1271,8 @@ def start_monitor():
 
     try:
         start_background_saver()
+        # ── Notify admins that monitoring is live ─────────────────────────────
+        send_startup_notification()
         sniff(prn=handle_packet, store=False, promisc=True)
     except PermissionError:
         print("\n❌ Permission denied! Run as Administrator")

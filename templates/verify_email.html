@@ -1,0 +1,734 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Contact — KAVACH IDS{% endblock %}
+{% block page_title %}Contact Verification{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Same layout as change_password.html ─────────────────── */
+    .vf-page {
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    .method-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .5rem;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: .375rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .method-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: .8rem 1rem;
+        border-radius: var(--radius);
+        border: none;
+        background: transparent;
+        font-size: .875rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+    .method-btn i { font-size: 1rem; }
+
+    .method-btn.active {
+        background: var(--panel);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-sm);
+        font-weight: 600;
+        border: 1px solid var(--border);
+    }
+
+    .method-btn.active i { color: var(--accent); }
+
+    .vf-panel { display: none; }
+    .vf-panel.active { display: block; }
+
+    .accent-stripe {
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    /* ── Step indicator ──────────────────────────────────────── */
+    .steps {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: .78rem;
+        color: var(--text-faint);
+        white-space: nowrap;
+    }
+
+    .step-num {
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono);
+        font-size: .68rem; font-weight: 700;
+        color: var(--text-faint);
+        flex-shrink: 0;
+        transition: all .35s;
+    }
+
+    .step.done .step-num {
+        background: var(--success);
+        border-color: var(--success);
+        color: #fff;
+    }
+
+    .step.active .step-num {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+    }
+
+    .step.active { color: var(--text-primary); font-weight: 600; }
+    .step.done   { color: var(--success); }
+
+    .step-line {
+        flex: 1;
+        height: 2px;
+        background: var(--border);
+        margin: 0 8px;
+        border-radius: 2px;
+        transition: background .35s;
+    }
+
+    .step-line.done { background: var(--success); }
+
+    /* ── Sub-steps (slide panels) ────────────────────────────── */
+    .substep { display: none; }
+    .substep.active { display: block; }
+
+    /* ── OTP digit boxes ─────────────────────────────────────── */
+    .otp-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin: 1.5rem 0 .75rem;
+    }
+
+    .otp-digit {
+        width: 54px; height: 62px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 1.5rem; font-weight: 700;
+        color: var(--text-primary);
+        background: var(--panel);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        outline: none;
+        transition: border-color .2s, box-shadow .2s, background .2s;
+        caret-color: var(--accent);
+    }
+
+    .otp-digit:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.12);
+        background: rgba(14,165,233,.02);
+    }
+
+    .otp-digit.filled  { border-color: var(--accent); }
+    .otp-digit.has-error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(244,63,94,.1); }
+
+    /* ── Timer ───────────────────────────────────────────────── */
+    .otp-timer {
+        font-family: var(--mono);
+        font-size: .8rem;
+        color: var(--text-muted);
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .otp-timer .t-val { color: var(--accent); font-weight: 600; }
+    .otp-timer.expiring .t-val { color: var(--danger); }
+
+    /* ── Verified success card ───────────────────────────────── */
+    .verified-banner {
+        background: rgba(16,185,129,.05);
+        border: 1px solid rgba(16,185,129,.2);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    /* ── Note box ────────────────────────────────────────────── */
+    .note-box {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: .875rem 1rem;
+        font-size: .8rem;
+        color: var(--text-muted);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        margin-bottom: 1.25rem;
+    }
+
+    .note-box i { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vf-page">
+
+    <!-- Back link -->
+    <a href="{{ url_for('profile') }}"
+       style="display:inline-flex;align-items:center;gap:6px;font-size:.8125rem;
+              color:var(--text-muted);text-decoration:none;margin-bottom:1.5rem;transition:color .2s;"
+       onmouseover="this.style.color='var(--accent)'"
+       onmouseout="this.style.color='var(--text-muted)'">
+        <i class="bi bi-arrow-left"></i> Back to Profile
+    </a>
+
+    <!-- Page heading -->
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <div style="width:44px;height:44px;border-radius:var(--radius);
+                    background:rgba(14,165,233,.1);display:flex;align-items:center;
+                    justify-content:center;flex-shrink:0;">
+            <i class="bi bi-patch-check" style="font-size:1.2rem;color:var(--accent);"></i>
+        </div>
+        <div>
+            <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                       color:var(--text-primary);margin:0;">Contact Verification</h2>
+            <p style="font-size:.8125rem;color:var(--text-muted);margin:2px 0 0;">
+                Verify your email address and phone number with a one-time code
+            </p>
+        </div>
+    </div>
+
+    <!-- ── Method toggle ── -->
+    <div class="method-toggle">
+        <button class="method-btn {% if active_tab != 'phone' %}active{% endif %}"
+                id="toggleEmail" onclick="switchTab('email')">
+            <i class="bi bi-envelope-check"></i>
+            Verify Email
+        </button>
+        <button class="method-btn {% if active_tab == 'phone' %}active{% endif %}"
+                id="togglePhone" onclick="switchTab('phone')">
+            <i class="bi bi-phone"></i>
+            Verify Phone
+        </button>
+    </div>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 1 — EMAIL VERIFICATION
+    ═══════════════════════════════════════════════════════════ -->
+    <div id="panel-email" class="vf-panel {% if active_tab != 'phone' %}active{% endif %}">
+        <div class="card" style="box-shadow:var(--shadow-lg);">
+            <div class="accent-stripe"></div>
+
+            <div class="card-header" style="padding:1.25rem 1.5rem;">
+                <div class="section-icon" style="background:rgba(14,165,233,.08);color:var(--accent);">
+                    <i class="bi bi-envelope-check"></i>
+                </div>
+                <h5>Email Verification</h5>
+                {% if user.get('email_verified') %}
+                <span style="margin-left:auto;font-family:var(--mono);font-size:.68rem;
+                             color:var(--success);background:rgba(16,185,129,.08);
+                             border:1px solid rgba(16,185,129,.2);border-radius:50px;padding:3px 10px;">
+                    <i class="bi bi-shield-check me-1"></i>Verified
+                </span>
+                {% else %}
+                <span style="margin-left:auto;font-family:var(--mono);font-size:.68rem;
+                             color:var(--warning);background:rgba(245,158,11,.08);
+                             border:1px solid rgba(245,158,11,.2);border-radius:50px;padding:3px 10px;">
+                    <i class="bi bi-exclamation-circle me-1"></i>Not verified
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="card-body" style="padding:1.75rem 1.75rem 2rem;">
+
+                {% if user.get('email_verified') %}
+                <!-- ── Already verified ── -->
+                <div class="verified-banner">
+                    <div style="width:56px;height:56px;border-radius:50%;
+                                background:rgba(16,185,129,.12);display:inline-flex;
+                                align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <i class="bi bi-check-circle-fill" style="font-size:1.6rem;color:var(--success);"></i>
+                    </div>
+                    <h5 style="font-weight:700;color:var(--success);margin-bottom:.25rem;">
+                        Email Verified
+                    </h5>
+                    <p style="font-size:.8125rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                        <strong style="font-family:var(--mono);">{{ user.email }}</strong>
+                        is confirmed and verified.
+                    </p>
+                    <div style="display:inline-flex;align-items:center;gap:7px;
+                                font-family:var(--mono);font-size:.72rem;
+                                color:var(--success);background:rgba(16,185,129,.08);
+                                border:1px solid rgba(16,185,129,.2);border-radius:50px;
+                                padding:5px 14px;">
+                        <i class="bi bi-shield-check"></i> Protected
+                    </div>
+                </div>
+
+                {% else %}
+                <!-- ── Step indicator ── -->
+                <div class="steps" id="emailSteps">
+                    <div class="step {% if email_step == 1 or not email_step %}active{% elif email_step > 1 %}done{% endif %}"
+                         id="eStep1">
+                        <div class="step-num">{% if email_step and email_step > 1 %}<i class="bi bi-check" style="font-size:.6rem;"></i>{% else %}1{% endif %}</div>
+                        <span>Send code</span>
+                    </div>
+                    <div class="step-line {% if email_step and email_step > 1 %}done{% endif %}" id="eLine1"></div>
+                    <div class="step {% if email_step == 2 %}active{% elif email_step and email_step > 2 %}done{% endif %}"
+                         id="eStep2">
+                        <div class="step-num">{% if email_step and email_step > 2 %}<i class="bi bi-check" style="font-size:.6rem;"></i>{% else %}2{% endif %}</div>
+                        <span>Enter OTP</span>
+                    </div>
+                    <div class="step-line {% if email_step and email_step > 2 %}done{% endif %}" id="eLine2"></div>
+                    <div class="step {% if email_step == 3 %}active{% endif %}" id="eStep3">
+                        <div class="step-num">3</div>
+                        <span>Verified</span>
+                    </div>
+                </div>
+
+                <!-- Sub-step 1: Send OTP -->
+                <div class="substep {% if not email_step or email_step == 1 %}active{% endif %}"
+                     id="eSubStep1">
+                    <div class="note-box">
+                        <i class="bi bi-info-circle"></i>
+                        <span>
+                            We'll send a <strong>6-digit verification code</strong> to
+                            <strong style="font-family:var(--mono);">{{ user.email }}</strong>.
+                            It expires in <strong>10 minutes</strong>.
+                        </span>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('send_email_verification') }}"
+                          id="sendEmailOtpForm">
+                        <div style="background:var(--panel-alt);border:1px solid var(--border);
+                                    border-radius:var(--radius);padding:14px 16px;
+                                    margin-bottom:1.5rem;display:flex;align-items:center;gap:12px;">
+                            <div style="width:36px;height:36px;border-radius:var(--radius-sm);
+                                        background:rgba(14,165,233,.1);flex-shrink:0;
+                                        display:flex;align-items:center;justify-content:center;">
+                                <i class="bi bi-envelope" style="color:var(--accent);font-size:.9rem;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size:.8rem;font-weight:600;color:var(--text-primary);">
+                                    {{ user.email }}
+                                </div>
+                                <div style="font-size:.75rem;color:var(--text-muted);">
+                                    Registered email address
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="sendEmailBtn"
+                                    style="padding:10px 24px;">
+                                <i class="bi bi-send me-1"></i>Send Verification Code
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Sub-step 2: Enter OTP -->
+                <div class="substep {% if email_step == 2 %}active{% endif %}" id="eSubStep2">
+
+                    <p style="font-size:.8125rem;color:var(--text-muted);
+                               text-align:center;margin-bottom:0;">
+                        Enter the 6-digit code sent to
+                        <strong style="color:var(--text-primary);font-family:var(--mono);">
+                            {{ email_masked or user.email }}
+                        </strong>
+                    </p>
+
+                    <!-- Resend form sits OUTSIDE the OTP form to prevent nested-form bug -->
+                    <form method="POST" action="{{ url_for('verify_email_otp_page') }}"
+                          id="emailResendForm" style="display:none;">
+                        <input type="hidden" name="action" value="resend">
+                    </form>
+
+                    <form method="POST" action="{{ url_for('verify_email_otp_page') }}"
+                          id="emailOtpForm">
+
+                        <!-- 6 digit boxes -->
+                        <div class="otp-group">
+                            {% for i in range(1, 7) %}
+                            <input type="text" class="otp-digit" id="ed{{ i }}"
+                                   name="d{{ i }}" maxlength="1"
+                                   inputmode="numeric" pattern="[0-9]"
+                                   autocomplete="one-time-code">
+                            {% endfor %}
+                        </div>
+
+                        <!-- Countdown -->
+                        <div class="otp-timer" id="emailTimerBox">
+                            Code expires in <span class="t-val" id="emailTimer">10:00</span>
+                        </div>
+
+                        <div id="emailOtpBanner" class="alert mb-3" style="display:none;"></div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    id="emailResendBtn"
+                                    onclick="document.getElementById('emailResendForm').submit()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Resend code
+                            </button>
+                            <button type="submit" class="btn btn-primary"
+                                    id="emailVerifyBtn" style="padding:10px 24px;">
+                                <i class="bi bi-shield-check me-1"></i>Verify Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div><!-- /panel-email -->
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 2 — PHONE VERIFICATION
+    ═══════════════════════════════════════════════════════════ -->
+    <div id="panel-phone" class="vf-panel {% if active_tab == 'phone' %}active{% endif %}">
+        <div class="card" style="box-shadow:var(--shadow-lg);">
+            <div style="height:3px;background:linear-gradient(90deg,var(--accent2),var(--info));
+                        border-radius:var(--radius-lg) var(--radius-lg) 0 0;"></div>
+
+            <div class="card-header" style="padding:1.25rem 1.5rem;">
+                <div class="section-icon" style="background:rgba(6,182,212,.08);color:var(--accent2);">
+                    <i class="bi bi-phone"></i>
+                </div>
+                <h5>Phone Verification</h5>
+                {% if user.get('phone_verified') %}
+                <span style="margin-left:auto;font-family:var(--mono);font-size:.68rem;
+                             color:var(--success);background:rgba(16,185,129,.08);
+                             border:1px solid rgba(16,185,129,.2);border-radius:50px;padding:3px 10px;">
+                    <i class="bi bi-shield-check me-1"></i>Verified
+                </span>
+                {% else %}
+                <span style="margin-left:auto;font-family:var(--mono);font-size:.68rem;
+                             color:var(--warning);background:rgba(245,158,11,.08);
+                             border:1px solid rgba(245,158,11,.2);border-radius:50px;padding:3px 10px;">
+                    <i class="bi bi-exclamation-circle me-1"></i>Not verified
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="card-body" style="padding:1.75rem 1.75rem 2rem;">
+
+                {% if user.get('phone_verified') and user.get('phone_number') %}
+                <!-- ── Already verified ── -->
+                <div class="verified-banner">
+                    <div style="width:56px;height:56px;border-radius:50%;
+                                background:rgba(16,185,129,.12);display:inline-flex;
+                                align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <i class="bi bi-check-circle-fill" style="font-size:1.6rem;color:var(--success);"></i>
+                    </div>
+                    <h5 style="font-weight:700;color:var(--success);margin-bottom:.25rem;">
+                        Phone Verified
+                    </h5>
+                    <p style="font-size:.8125rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                        <strong style="font-family:var(--mono);">
+                            {{ user.phone_number[:3] }}***{{ user.phone_number[-3:] }}
+                        </strong>
+                        is confirmed and verified.
+                    </p>
+                    <div style="display:inline-flex;align-items:center;gap:7px;
+                                font-family:var(--mono);font-size:.72rem;
+                                color:var(--success);background:rgba(16,185,129,.08);
+                                border:1px solid rgba(16,185,129,.2);border-radius:50px;
+                                padding:5px 14px;">
+                        <i class="bi bi-shield-check"></i> Protected
+                    </div>
+                    <div style="margin-top:1rem;">
+                        <a href="#" onclick="document.getElementById('pSubStep1').classList.add('active');
+                                             document.getElementById('pSubStep1').style.marginTop='1.25rem';
+                                             this.style.display='none';return false;"
+                           style="font-size:.8125rem;color:var(--accent);text-decoration:none;">
+                            <i class="bi bi-arrow-repeat me-1"></i>Update phone number
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Hidden re-verify sub-step -->
+                <div id="pSubStep1" style="display:none;margin-top:1.25rem;">
+                    <hr style="border-color:var(--border);margin-bottom:1.5rem;">
+                    <form method="POST" action="{{ url_for('send_phone_verification') }}">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-phone me-1" style="color:var(--accent2);"></i>
+                                New Phone Number
+                            </label>
+                            <input type="tel" class="form-control" name="phone_number"
+                                   value="{{ user.get('phone_number') or '' }}"
+                                   placeholder="+91 98765 43210" required
+                                   style="font-family:var(--mono);font-size:.875rem;">
+                            <div class="form-text mt-1" style="font-size:.75rem;">
+                                Include country code (e.g. +91 for India)
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="submit" class="btn btn-primary" style="padding:10px 24px;">
+                                <i class="bi bi-send me-1"></i>Send OTP
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                {% else %}
+                <!-- ── Step indicator ── -->
+                <div class="steps" id="phoneSteps">
+                    <div class="step {% if phone_step == 1 or not phone_step %}active{% elif phone_step and phone_step > 1 %}done{% endif %}"
+                         id="pStep1">
+                        <div class="step-num">{% if phone_step and phone_step > 1 %}<i class="bi bi-check" style="font-size:.6rem;"></i>{% else %}1{% endif %}</div>
+                        <span>Add number</span>
+                    </div>
+                    <div class="step-line {% if phone_step and phone_step > 1 %}done{% endif %}" id="pLine1"></div>
+                    <div class="step {% if phone_step == 2 %}active{% elif phone_step and phone_step > 2 %}done{% endif %}"
+                         id="pStep2">
+                        <div class="step-num">{% if phone_step and phone_step > 2 %}<i class="bi bi-check" style="font-size:.6rem;"></i>{% else %}2{% endif %}</div>
+                        <span>Enter OTP</span>
+                    </div>
+                    <div class="step-line {% if phone_step and phone_step > 2 %}done{% endif %}" id="pLine2"></div>
+                    <div class="step {% if phone_step == 3 %}active{% endif %}" id="pStep3">
+                        <div class="step-num">3</div>
+                        <span>Verified</span>
+                    </div>
+                </div>
+
+                <!-- Sub-step 1: Enter phone number -->
+                <div class="substep {% if not phone_step or phone_step == 1 %}active{% endif %}"
+                     id="phoneSubStep1">
+                    <div class="note-box">
+                        <i class="bi bi-info-circle"></i>
+                        <span>
+                            Enter your phone number and we'll send a
+                            <strong>6-digit code</strong> to verify it.
+                            Include your country code (e.g. <strong>+91</strong> for India).
+                        </span>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('send_phone_verification') }}"
+                          id="sendPhoneForm">
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="bi bi-phone me-1" style="color:var(--accent2);"></i>
+                                Phone Number
+                            </label>
+                            <input type="tel" class="form-control" name="phone_number"
+                                   value="{{ user.get('phone_number') or '' }}"
+                                   placeholder="+91 98765 43210" required
+                                   style="font-family:var(--mono);font-size:.875rem;"
+                                   id="phoneInput">
+                            <div class="form-text mt-1" style="font-size:.75rem;">
+                                Include country code — e.g. <code>+91</code> for India, <code>+1</code> for USA
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="sendPhoneBtn"
+                                    style="padding:10px 24px;">
+                                <i class="bi bi-send me-1"></i>Send OTP
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Sub-step 2: Enter OTP -->
+                <div class="substep {% if phone_step == 2 %}active{% endif %}"
+                     id="phoneSubStep2">
+
+                    <p style="font-size:.8125rem;color:var(--text-muted);
+                               text-align:center;margin-bottom:0;">
+                        Enter the 6-digit code sent to
+                        <strong style="color:var(--text-primary);font-family:var(--mono);">
+                            {{ phone_masked or user.get('phone_number', '') }}
+                        </strong>
+                    </p>
+
+                    <!-- Resend form sits OUTSIDE the OTP form to prevent nested-form bug -->
+                    <form method="POST" action="{{ url_for('verify_phone_otp_page') }}"
+                          id="phoneResendForm" style="display:none;">
+                        <input type="hidden" name="action" value="resend">
+                    </form>
+
+                    <form method="POST" action="{{ url_for('verify_phone_otp_page') }}"
+                          id="phoneOtpForm">
+
+                        <div class="otp-group">
+                            {% for i in range(1, 7) %}
+                            <input type="text" class="otp-digit" id="pd{{ i }}"
+                                   name="d{{ i }}" maxlength="1"
+                                   inputmode="numeric" pattern="[0-9]"
+                                   autocomplete="one-time-code">
+                            {% endfor %}
+                        </div>
+
+                        <div class="otp-timer" id="phoneTimerBox">
+                            Code expires in <span class="t-val" id="phoneTimer">10:00</span>
+                        </div>
+
+                        <div id="phoneOtpBanner" class="alert mb-3" style="display:none;"></div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    id="phoneResendBtn"
+                                    onclick="document.getElementById('phoneResendForm').submit()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Resend code
+                            </button>
+                            <button type="submit" class="btn btn-primary"
+                                    id="phoneVerifyBtn" style="padding:10px 24px;">
+                                <i class="bi bi-shield-check me-1"></i>Verify Phone
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div><!-- /panel-phone -->
+
+</div><!-- /vf-page -->
+
+<script>
+    /* ── Tab switcher ── */
+    function switchTab(tab) {
+        ['email','phone'].forEach(t => {
+            document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+            document.getElementById('toggle' + t.charAt(0).toUpperCase() + t.slice(1))
+                    .classList.toggle('active', t === tab);
+        });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       EMAIL OTP LOGIC
+    ═══════════════════════════════════════════════════════════ */
+    function setupOtp(prefix, formId, bannerId, timerElId, timerBoxId, submitBtnId) {
+        const digits = Array.from({length: 6}, (_, i) =>
+            document.getElementById(prefix + (i+1)));
+
+        if (!digits[0]) return; // panel not rendered (already verified)
+
+        digits.forEach((input, idx) => {
+            if (!input) return;
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/\D/g,'').slice(-1);
+                input.classList.toggle('filled', !!input.value);
+                input.classList.remove('has-error');
+                if (input.value && idx < 5) digits[idx+1].focus();
+                if (idx === 5 && input.value && digits.every(d => d && d.value))
+                    setTimeout(() => document.getElementById(formId).requestSubmit(), 150);
+            });
+
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Backspace' && !input.value && idx > 0) {
+                    digits[idx-1].focus();
+                    digits[idx-1].value = '';
+                    digits[idx-1].classList.remove('filled');
+                }
+            });
+
+            input.addEventListener('paste', e => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData)
+                    .getData('text').replace(/\D/g,'').slice(0,6);
+                paste.split('').forEach((ch, i) => {
+                    if (digits[i]) { digits[i].value = ch; digits[i].classList.add('filled'); }
+                });
+                const next = Math.min(paste.length, 5);
+                if (digits[next]) digits[next].focus();
+                if (paste.length === 6)
+                    setTimeout(() => document.getElementById(formId).requestSubmit(), 150);
+            });
+        });
+
+        // Focus first box
+        digits[0].focus();
+
+        // Validate on submit
+        document.getElementById(formId)?.addEventListener('submit', function(e) {
+            if (!digits.every(d => d && d.value.match(/^\d$/))) {
+                e.preventDefault();
+                digits.forEach(d => d && d.classList.add('has-error'));
+                const b = document.getElementById(bannerId);
+                b.className = 'alert alert-danger mb-3';
+                b.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Please enter all 6 digits.';
+                b.style.display = 'flex';
+                return;
+            }
+            const btn = document.getElementById(submitBtnId);
+            if (btn) { btn.innerHTML = '<span class="loading me-1"></span>Verifying…'; btn.disabled = true; }
+        });
+
+        // Countdown timer (10 min)
+        let secs = 600;
+        const tick = () => {
+            const timerEl  = document.getElementById(timerElId);
+            const timerBox = document.getElementById(timerBoxId);
+            if (!timerEl) return;
+            const m = String(Math.floor(secs/60)).padStart(2,'0');
+            const s = String(secs % 60).padStart(2,'0');
+            timerEl.textContent = `${m}:${s}`;
+            if (secs <= 60) timerBox.classList.add('expiring');
+            if (secs <= 0) {
+                timerBox.innerHTML = '<span style="color:var(--danger);">Code expired — resend to continue.</span>';
+                digits.forEach(d => d && (d.disabled = true));
+                const btn = document.getElementById(submitBtnId);
+                if (btn) btn.disabled = true;
+                return;
+            }
+            secs--;
+            setTimeout(tick, 1000);
+        };
+        tick();
+    }
+
+    // Submit button loading for send forms
+    document.getElementById('sendEmailBtn')?.closest('form')
+        ?.addEventListener('submit', function() {
+            const btn = document.getElementById('sendEmailBtn');
+            btn.innerHTML = '<span class="loading me-1"></span>Sending…';
+            btn.disabled = true;
+        });
+
+    document.getElementById('sendPhoneBtn')?.closest('form')
+        ?.addEventListener('submit', function() {
+            const btn = document.getElementById('sendPhoneBtn');
+            btn.innerHTML = '<span class="loading me-1"></span>Sending…';
+            btn.disabled = true;
+        });
+
+    // Init OTP boxes for whichever panels are in OTP step
+    {% if email_step == 2 %}
+    setupOtp('ed', 'emailOtpForm', 'emailOtpBanner', 'emailTimer', 'emailTimerBox', 'emailVerifyBtn');
+    {% endif %}
+
+    {% if phone_step == 2 %}
+    setupOtp('pd', 'phoneOtpForm', 'phoneOtpBanner', 'phoneTimer', 'phoneTimerBox', 'phoneVerifyBtn');
+    {% endif %}
+</script>
+
+{% endblock %}

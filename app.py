@@ -8,24 +8,14 @@ from datetime import datetime, timedelta
 import os
 import io
 import csv
+import random
+import secrets
+import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-import os
-import gdown
-
-os.makedirs("models", exist_ok=True)
-
-model_path = "models/best_ids_model.pkl"
-
-if not os.path.exists(model_path):
-    print("Downloading ML model...")
-    url = "https://drive.google.com/uc?id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
-    gdown.download(url, model_path, quiet=False)
-    print("Model downloaded successfully!")
-    
 # Import your live prediction module
 from live_prediction import LiveIDSPredictor
 
@@ -45,6 +35,202 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# =============================================================================
+# ── RESEND API (Email OTP) ───────────────────────────────────────────────────
+#  1. Sign up FREE at https://resend.com
+#  2. Dashboard → API Keys → Create API Key → paste below
+#  3. For testing use from="onboarding@resend.dev" (sends only to your signup email)
+#     To send to anyone: Domains → add & verify your domain
+# =============================================================================
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', 're_2ANZbc3U_NjNuaCuGEAaHSJjJtpBadSF7')   # e.g. re_xxxxxxxxxxxx
+RESEND_FROM    = os.environ.get('RESEND_FROM', 'KAVACH IDS <onboarding@resend.dev>')
+
+# =============================================================================
+# ── VONAGE (Nexmo) API (Phone OTP — Free trial €2, works in India, no DLT) ──
+#  1. Sign up FREE at https://dashboard.nexmo.com/sign-up  (€2 free credit)
+#  2. Dashboard → API Settings → copy API Key and API Secret below
+#  3. Your Vonage virtual number is shown on the Dashboard home page
+# =============================================================================
+VONAGE_API_KEY    = os.environ.get('VONAGE_API_KEY',    'b54ec379')   # e.g. a1b2c3d4
+VONAGE_API_SECRET = os.environ.get('VONAGE_API_SECRET', 'KKb4o3J9fcF0EnCp')   # from Vonage dashboard
+VONAGE_FROM       = os.environ.get('VONAGE_FROM',       'KAVACH')  # sender name or your Vonage number
+
+OTP_EXPIRY_MINUTES = 10   # OTP valid for 10 minutes
+
+
+# =============================================================================
+# OTP HELPER FUNCTIONS
+# =============================================================================
+
+def generate_otp():
+    """Return a cryptographically secure 6-digit OTP string."""
+    return f"{random.SystemRandom().randint(0, 999999):06d}"
+
+
+def send_otp_email(to_email, otp):
+    """
+    Send OTP via Resend API.
+    Returns (True, '') on success or (False, error_msg) on failure.
+    DEV MODE: if RESEND_API_KEY is blank, prints OTP to terminal instead of sending.
+    """
+    if not RESEND_API_KEY:
+        print(f"\n{'='*50}")
+        print(f"  DEV MODE — EMAIL OTP")
+        print(f"  To   : {to_email}")
+        print(f"  Code : {otp}")
+        print(f"{'='*50}\n")
+        return True, ''
+
+    try:
+        response = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {RESEND_API_KEY}',
+                'Content-Type':  'application/json',
+            },
+            json={
+                'from':    RESEND_FROM,
+                'to':      [to_email],
+                'subject': 'KAVACH IDS — Your Verification Code',
+                'html': f"""
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;
+                            padding:32px 24px;background:#f4f6fa;border-radius:12px;">
+                    <div style="text-align:center;margin-bottom:20px;">
+                        <h2 style="font-family:monospace;color:#0ea5e9;margin:0;">KAVACH IDS</h2>
+                        <p style="color:#64748b;font-size:13px;margin:4px 0 0;">EPG Security Platform</p>
+                    </div>
+                    <div style="background:#ffffff;border-radius:10px;padding:28px 24px;
+                                border:1px solid #e2e8f0;">
+                        <h3 style="color:#0f172a;margin-top:0;">Verification Code</h3>
+                        <p style="color:#334155;font-size:14px;margin-bottom:20px;">
+                            Use the code below to verify your account.
+                            It expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.
+                        </p>
+                        <div style="text-align:center;margin:20px 0;">
+                            <span style="font-family:monospace;font-size:40px;font-weight:700;
+                                         letter-spacing:12px;color:#0ea5e9;background:#f0f9ff;
+                                         border:2px dashed #bae6fd;border-radius:8px;
+                                         padding:14px 20px;display:inline-block;">
+                                {otp}
+                            </span>
+                        </div>
+                        <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">
+                            If you didn't request this, please ignore this email.
+                        </p>
+                    </div>
+                </div>"""
+            }
+        )
+        if response.status_code in (200, 201):
+            return True, ''
+        else:
+            return False, f"Resend error {response.status_code}: {response.text}"
+    except Exception as e:
+        return False, str(e)
+
+
+def send_otp_sms(phone, otp):
+    """
+    Send OTP via Vonage (Nexmo) SMS API.
+    Free trial gives €2 credit — works in India, no DLT registration needed.
+    Returns (True, '') on success or (False, error_msg) on failure.
+    DEV MODE: if credentials are blank, prints OTP to terminal instead of sending.
+    """
+    # ── DEV MODE: credentials not set ────────────────────────────────────────
+    if not VONAGE_API_KEY or not VONAGE_API_SECRET:
+        print(f"\n{'='*50}")
+        print(f"  DEV MODE — SMS OTP (Vonage not configured)")
+        print(f"  To   : {phone}")
+        print(f"  Code : {otp}")
+        print(f"{'='*50}\n")
+        return True, ''
+
+    try:
+        # Vonage requires digits-only number in E.164 (no leading +)
+        phone_digits = phone.strip().replace(' ', '').lstrip('+')
+
+        response = requests.post(
+            'https://rest.nexmo.com/sms/json',
+            data={
+                'api_key':    VONAGE_API_KEY,
+                'api_secret': VONAGE_API_SECRET,
+                'from':       VONAGE_FROM,
+                'to':         phone_digits,
+                'text':       f'Your KAVACH verification code is {otp}. Valid for 10 minutes. Do not share.',
+                'type':       'text',
+            },
+            timeout=10
+        )
+        result = response.json()
+        messages = result.get('messages', [])
+        if messages and messages[0].get('status') == '0':
+            return True, ''
+        else:
+            err = messages[0].get('error-text', str(result)) if messages else str(result)
+            return False, err
+    except Exception as e:
+        return False, str(e)
+
+
+def store_otp(key, otp):
+    """
+    Save OTP to DB. key = email address OR phone number.
+    Invalidates any previous unused OTPs for the same key first.
+    """
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            "UPDATE password_reset_otps SET used=1 WHERE email=? AND used=0",
+            (key,)
+        )
+        expires_at = (datetime.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)).isoformat()
+        conn.execute(
+            "INSERT INTO password_reset_otps (email, otp, expires_at) VALUES (?,?,?)",
+            (key, otp, expires_at)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"store_otp error: {e}")
+
+
+def verify_otp(key, otp_input):
+    """
+    Validate OTP for given key (email or phone).
+    Returns (True, '') if valid, (False, reason) otherwise.
+    """
+    try:
+        conn = get_db_connection()
+        row = conn.execute(
+            """SELECT * FROM password_reset_otps
+               WHERE email=? AND otp=? AND used=0
+               ORDER BY created_at DESC LIMIT 1""",
+            (key, otp_input.strip())
+        ).fetchone()
+        conn.close()
+
+        if not row:
+            return False, 'Invalid code. Please check and try again.'
+        if datetime.now() > datetime.fromisoformat(str(row['expires_at'])):
+            return False, 'Code has expired. Please request a new one.'
+        return True, ''
+    except Exception as e:
+        return False, f'Verification error: {str(e)}'
+
+
+def mark_otp_used(key, otp_input):
+    """Mark OTP as used after successful verification."""
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            "UPDATE password_reset_otps SET used=1 WHERE email=? AND otp=?",
+            (key, otp_input.strip())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"mark_otp_used error: {e}")
 
 
 
@@ -241,6 +427,17 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS password_reset_otps (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            email      TEXT NOT NULL,
+            otp        TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            used       INTEGER DEFAULT 0
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -264,18 +461,53 @@ def log_system_event(level, message, component='system', user_id=None, ip_addres
     except Exception as e:
         print(f"Logging error: {e}")
 
-def get_dashboard_stats():
-    """Get dashboard statistics from actual predictions"""
+# AFTER — add user_id parameter and filter by it
+def get_dashboard_stats(user_id=None):          # ← ADD user_id=None
     conn = get_db_connection()
-    
     try:
-        # Get total predictions
-        total_predictions = conn.execute('SELECT COUNT(*) FROM predictions').fetchone()[0]
-        
-        # Get attacks detected
-        attacks_detected = conn.execute(
-            'SELECT COUNT(*) FROM predictions WHERE prediction_result = "Attack"'
+        # Build WHERE clause based on user
+        if user_id:
+            where = f'WHERE user_id = {user_id}'
+            where_and = f'WHERE user_id = {user_id} AND'
+        else:
+            where = 'WHERE 1=1'
+            where_and = 'WHERE'
+
+        total_predictions = conn.execute(
+            f'SELECT COUNT(*) FROM predictions {where}'
         ).fetchone()[0]
+
+        attacks_detected = conn.execute(
+            f'SELECT COUNT(*) FROM predictions {where_and} prediction_result = "Attack"'
+        ).fetchone()[0]
+
+        attack_types = conn.execute(f'''
+            SELECT attack_type, COUNT(*) as count 
+            FROM predictions {where}
+            GROUP BY attack_type ORDER BY count DESC
+        ''').fetchall()
+
+        recent_predictions = conn.execute(f'''
+            SELECT * FROM predictions {where}
+            ORDER BY timestamp DESC LIMIT 10
+        ''').fetchall()
+
+        hourly_trends = conn.execute(f'''
+            SELECT 
+                strftime('%H', timestamp) as hour,
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN prediction_result = "Attack" THEN 1 ELSE 0 END) as attacks
+            FROM predictions 
+            {where_and} timestamp >= datetime('now', '-24 hours')
+            GROUP BY hour ORDER BY hour
+        ''').fetchall()
+
+        top_ips = conn.execute(f'''
+            SELECT ip_address, COUNT(*) as attack_count, AVG(confidence) as avg_confidence
+            FROM predictions 
+            {where_and} prediction_result = "Attack"
+            GROUP BY ip_address ORDER BY attack_count DESC LIMIT 5
+        ''').fetchall()
         
         # Get attack types distribution
         attack_types = conn.execute('''
@@ -355,13 +587,19 @@ def get_dashboard_stats():
 # Routes
 @app.route('/')
 def index():
+    # Logged-in users go straight to the dashboard
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
-    else:return redirect(url_for('login'))
+    # Everyone else sees the public landing page
+    return render_template('landing_page.html')
 
 @app.route('/info')
 def info():
+    """System overview page (requires login)."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     return render_template('index.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -466,6 +704,40 @@ def login():
     
     return render_template('login.html')
 
+@app.route("/save-user", methods=["POST"])
+def save_user():
+    data = request.get_json()
+
+    name = data.get("name")
+    email = data.get("email")
+
+    conn = get_db_connection()
+
+    # 🔍 Check if user exists
+    user = conn.execute(
+        "SELECT * FROM users WHERE email = ?",
+        (email,)
+    ).fetchone()
+
+    if user:
+        user_id = user["id"]
+    else:
+        # Create new user
+        cursor = conn.execute(
+            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+            (name, email, "firebase_login")
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+
+    conn.close()
+
+    # 🔥 IMPORTANT: SET SESSION LIKE NORMAL LOGIN
+    session["user_id"] = user_id
+    session["username"] = name
+    session["user_email"] = email
+
+    return jsonify({"status": "success"})
 
 # Optional: Add a middleware to check user status on every request
 @app.before_request
@@ -593,8 +865,17 @@ def dashboard():
         return redirect(url_for('login'))
     
     try:
-        stats = get_dashboard_stats()
-        return render_template('dashboard.html', stats=stats)
+        uid = session['user_id']
+        username = session.get('username', '')
+
+        # Admin (id=1) sees everything, others see only their data
+        is_admin = (uid == 1)
+        stats = get_dashboard_stats(user_id=None if is_admin else uid)
+
+        return render_template('dashboard.html', 
+                               stats=stats,
+                               username=username,
+                               is_admin=is_admin)
     except Exception as e:
         flash(f'Error loading dashboard: {str(e)}', 'danger')
         return render_template('dashboard.html', stats=get_dashboard_stats())
@@ -676,8 +957,15 @@ def reports():
         conn = get_db_connection()
         
         # Build base query and parameters for filtering
-        base_query = 'FROM predictions WHERE 1=1'
-        params = []
+        uid = session['user_id']
+        is_admin = (uid == 1)
+
+        # Filter by user unless admin
+        if is_admin:
+            base_query = 'FROM predictions WHERE 1=1'
+        else:
+            base_query = 'FROM predictions WHERE user_id = ?'
+        params = [] if is_admin else [uid]
         
         if attack_type:
             base_query += ' AND attack_type = ?'
@@ -860,9 +1148,10 @@ def download_report(format):
 def api_dashboard_data():
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-    
     try:
-        stats = get_dashboard_stats()
+        uid = session['user_id']
+        is_admin = (uid == 1)
+        stats = get_dashboard_stats(user_id=None if is_admin else uid)
         return jsonify(stats)
     except Exception as e:
         return jsonify({'error': 'Internal server error'}), 500
@@ -1058,10 +1347,18 @@ def check_blocked_ip():
 
 @app.before_request
 def before_request():
-    if request.endpoint in ['static', 'login', 'register', 'index']:
+    # Public endpoints that never require a login
+    PUBLIC_ENDPOINTS = {
+        'static', 'login', 'register', 'index',
+        'save_user',        # Firebase social login — must be allowed to set session
+        'forgot_password',  # Password reset flow
+        'verify_otp_page',
+        'reset_password',
+    }
+    if request.endpoint in PUBLIC_ENDPOINTS:
         return
-    
-    if 'user_id' not in session and request.endpoint not in ['login', 'register', 'index']:
+
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
 
@@ -1846,6 +2143,660 @@ def unblock_ip(ip_address):
         flash(f'Error unblocking IP: {str(e)}', 'danger')
     
     return redirect(url_for('blocked_ips'))
+
+
+
+# =============================================================================
+# PROFILE — helper decorators & routes
+# =============================================================================
+from functools import wraps
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated
+
+def write_audit(action, target=None, details=None):
+    """Write a tamper-evident audit record."""
+    try:
+        conn = get_db_connection()
+        # Create table if not exists
+        conn.execute('''CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            performed_by TEXT NOT NULL,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            target TEXT,
+            details TEXT,
+            ip_address TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.execute(
+            'INSERT INTO audit_log (performed_by, user_id, action, target, details, ip_address) VALUES (?,?,?,?,?,?)',
+            (session.get('username', 'system'), session.get('user_id'),
+             action, target, details, request.remote_addr)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Audit log error: {e}")
+
+
+@app.route('/profile')
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+
+    # Add extra columns if they don't exist yet
+    for col, typ in [('full_name', 'TEXT'), ('bio', 'TEXT'),
+                     ('totp_enabled', 'BOOLEAN DEFAULT 0'),
+                     ('is_admin', 'BOOLEAN DEFAULT 0'),
+                     ('is_approved', 'BOOLEAN DEFAULT 1'),
+                     ('email_verified', 'BOOLEAN DEFAULT 0'),
+                     ('phone_number', 'TEXT'),
+                     ('phone_verified', 'BOOLEAN DEFAULT 0')]:
+        try:
+            conn.execute(f'ALTER TABLE users ADD COLUMN {col} {typ}')
+            conn.commit()
+        except Exception:
+            pass
+
+    user = conn.execute(
+        'SELECT * FROM users WHERE id = ?', (session['user_id'],)
+    ).fetchone()
+
+    total_analyses = conn.execute(
+        'SELECT COUNT(DISTINCT session_id) FROM predictions WHERE user_id = ?',
+        (session['user_id'],)
+    ).fetchone()[0]
+
+    total_blocked = conn.execute(
+        'SELECT COUNT(*) FROM blocked_ips WHERE blocked_by = ?',
+        (session.get('username'),)
+    ).fetchone()[0]
+
+    total_scanned = conn.execute(
+        'SELECT COUNT(*) FROM predictions WHERE user_id = ?',
+        (session['user_id'],)
+    ).fetchone()[0]
+
+    days_active = 1
+    try:
+        created_row = conn.execute(
+            'SELECT created_at FROM users WHERE id = ?', (session['user_id'],)
+        ).fetchone()
+        if created_row and created_row['created_at']:
+            from datetime import datetime
+            created = datetime.fromisoformat(str(created_row['created_at']))
+            days_active = max(1, (datetime.now() - created).days)
+    except Exception:
+        pass
+
+    audit_logs = []
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            performed_by TEXT NOT NULL,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            target TEXT,
+            details TEXT,
+            ip_address TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.commit()
+        audit_logs = conn.execute(
+            'SELECT * FROM audit_log WHERE user_id = ? ORDER BY timestamp DESC LIMIT 20',
+            (session['user_id'],)
+        ).fetchall()
+    except Exception:
+        pass
+
+    conn.close()
+
+    return render_template(
+        'profile.html',
+        user=dict(user) if user else {},
+        total_analyses=total_analyses,
+        total_blocked=total_blocked,
+        total_scanned=total_scanned,
+        days_active=days_active,
+        audit_logs=[dict(r) for r in audit_logs],
+        active_sessions=[]
+    )
+
+
+@app.route('/profile/update', methods=['POST'])
+def update_profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    email     = request.form.get('email', '').strip()
+    full_name = request.form.get('full_name', '').strip()
+    bio       = request.form.get('bio', '').strip()
+
+    if not email or '@' not in email:
+        flash('Please enter a valid email address.', 'danger')
+        return redirect(url_for('profile'))
+
+    try:
+        conn = get_db_connection()
+        existing = conn.execute(
+            'SELECT id FROM users WHERE email = ? AND id != ?',
+            (email, session['user_id'])
+        ).fetchone()
+        if existing:
+            flash('That email is already in use.', 'danger')
+            conn.close()
+            return redirect(url_for('profile'))
+
+        for col, typ in [('full_name', 'TEXT'), ('bio', 'TEXT')]:
+            try:
+                conn.execute(f'ALTER TABLE users ADD COLUMN {col} {typ}')
+                conn.commit()
+            except Exception:
+                pass
+
+        conn.execute(
+            'UPDATE users SET email = ?, full_name = ?, bio = ? WHERE id = ?',
+            (email, full_name, bio, session['user_id'])
+        )
+        conn.commit()
+        conn.close()
+
+        session['user_email'] = email
+        write_audit('PROFILE_UPDATED')
+        log_system_event('INFO', f'User {session["username"]} updated profile', 'profile', session['user_id'])
+        flash('Profile updated successfully!', 'success')
+    except Exception as e:
+        flash(f'Error updating profile: {str(e)}', 'danger')
+
+    return redirect(url_for('profile'))
+
+
+# =============================================================================
+# PASSWORD MANAGEMENT ROUTES
+# =============================================================================
+
+@app.route('/change_password', methods=['GET', 'POST'])
+@app.route('/profile/change-password', methods=['GET', 'POST'])
+def change_password():
+    """GET → show page. POST → save new password. Both URLs accepted."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'GET':
+        return render_template('change_password.html', email_sent=False, masked_email=None)
+
+    current_password = request.form.get('current_password', '')
+    new_password     = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    def fail(msg):
+        flash(msg, 'danger')
+        return render_template('change_password.html', email_sent=False, masked_email=None)
+
+    if not current_password or not new_password:
+        return fail('All password fields are required.')
+    if len(new_password) < 8:
+        return fail('New password must be at least 8 characters.')
+    if new_password != confirm_password:
+        return fail('New passwords do not match.')
+
+    try:
+        conn = get_db_connection()
+        user = conn.execute(
+            'SELECT password_hash FROM users WHERE id = ?', (session['user_id'],)
+        ).fetchone()
+
+        if not user or not check_password_hash(user['password_hash'], current_password):
+            conn.close()
+            return fail('Current password is incorrect.')
+
+        conn.execute(
+            'UPDATE users SET password_hash = ? WHERE id = ?',
+            (generate_password_hash(new_password), session['user_id'])
+        )
+        conn.commit()
+        conn.close()
+
+        write_audit('PASSWORD_CHANGED')
+        log_system_event('INFO', f'User {session["username"]} changed password',
+                         'profile', session['user_id'])
+        flash('Password updated successfully!', 'success')
+        return redirect(url_for('profile'))
+
+    except Exception as e:
+        return fail(f'Error: {str(e)}')
+
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Show forgot-password form (GET) and send reset email (POST)."""
+
+    # Logged-in users go to the unified page
+    if 'user_id' in session and request.method == 'GET':
+        return redirect(url_for('change_password'))
+
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+
+            # Honeypot check
+            if request.form.get('_gotcha'):
+                return redirect(url_for('login'))
+
+            if not email or '@' not in email:
+                flash('Please enter a valid email address.', 'danger')
+                return render_template('forgot_password.html',
+                                       email_sent=False, prefill_email=email)
+
+            conn = get_db_connection()
+            user = conn.execute(
+                'SELECT * FROM users WHERE email = ?', (email,)
+            ).fetchone()
+            conn.close()
+
+            # Mask email for display e.g. ar***@kavach.local
+            parts   = email.split('@')
+            visible = parts[0][:2] if len(parts[0]) > 2 else parts[0][0]
+            masked  = visible + '***@' + parts[1]
+
+            # Always show success to prevent email enumeration
+            if user:
+                otp = generate_otp()
+                store_otp(email, otp)
+                ok, err = send_otp_email(email, otp)
+                if not ok:
+                    flash(f'Could not send email: {err}', 'danger')
+                    return render_template('forgot_password.html',
+                                           email_sent=False, prefill_email=email)
+                log_system_event('INFO', f'Password reset OTP sent to {email}',
+                                 'auth', user['id'], request.remote_addr)
+            else:
+                log_system_event('WARNING', f'Reset attempt for unknown email: {email}',
+                                 'auth', None, request.remote_addr)
+
+            session['reset_email'] = email
+            return render_template('forgot_password.html',
+                                   email_sent=True, masked_email=masked)
+
+        except Exception as e:
+            flash(f'Error sending reset email: {str(e)}', 'danger')
+            return render_template('forgot_password.html',
+                                   email_sent=False, prefill_email='')
+
+    # GET — show the form
+    return render_template('forgot_password.html', email_sent=False, prefill_email='')
+
+
+
+@app.route('/verify_otp', methods=['GET', 'POST'])
+def verify_otp_page():
+    """Step 2 — Enter 6-digit OTP sent to email for password reset."""
+    email = session.get('reset_email', '')
+    if not email:
+        flash('Session expired. Please start over.', 'warning')
+        return redirect(url_for('forgot_password'))
+
+    parts   = email.split('@')
+    visible = parts[0][:2] if len(parts[0]) > 2 else parts[0][0]
+    masked  = visible + '***@' + parts[1]
+
+    if request.method == 'POST':
+        if request.form.get('action') == 'resend':
+            try:
+                conn = get_db_connection()
+                user = conn.execute('SELECT * FROM users WHERE email=?', (email,)).fetchone()
+                conn.close()
+                if user:
+                    otp = generate_otp()
+                    store_otp(email, otp)
+                    send_otp_email(email, otp)
+                flash('A new OTP has been sent.', 'info')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'danger')
+            return render_template('verify_otp.html', masked_email=masked,
+                                   form_action=url_for('verify_otp_page'), purpose='reset')
+
+        digits    = [request.form.get(f'd{i}', '') for i in range(1, 7)]
+        otp_input = ''.join(digits).strip()
+
+        if len(otp_input) != 6 or not otp_input.isdigit():
+            flash('Please enter all 6 digits.', 'danger')
+            return render_template('verify_otp.html', masked_email=masked,
+                                   form_action=url_for('verify_otp_page'), purpose='reset')
+
+        valid, reason = verify_otp(email, otp_input)
+        if not valid:
+            flash(reason, 'danger')
+            return render_template('verify_otp.html', masked_email=masked,
+                                   form_action=url_for('verify_otp_page'), purpose='reset')
+
+        mark_otp_used(email, otp_input)
+        reset_token = secrets.token_urlsafe(32)
+        session['reset_token']        = reset_token
+        session['reset_token_expiry'] = (datetime.now() + timedelta(minutes=15)).isoformat()
+        log_system_event('INFO', f'OTP verified for {email}', 'auth')
+        return redirect(url_for('reset_password', token=reset_token))
+
+    return render_template('verify_otp.html', masked_email=masked,
+                           form_action=url_for('verify_otp_page'), purpose='reset')
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Handle the reset link clicked from email."""
+
+    email        = session.get('reset_email', '')
+    stored_token = session.get('reset_token', '')
+    token_expiry = session.get('reset_token_expiry', '')
+
+    token_invalid = (not email or token != stored_token)
+    if not token_invalid and token_expiry:
+        try:
+            if datetime.now() > datetime.fromisoformat(token_expiry):
+                token_invalid = True
+        except Exception:
+            token_invalid = True
+
+    if token_invalid:
+        return render_template('reset_password.html',
+                               token=token, token_invalid=True, user_email='')
+
+    if request.method == 'POST':
+        new_password     = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        def fail(msg):
+            flash(msg, 'danger')
+            return render_template('reset_password.html',
+                                   token=token, token_invalid=False, user_email=email)
+
+        if len(new_password) < 8:
+            return fail('Password must be at least 8 characters.')
+        if new_password != confirm_password:
+            return fail('Passwords do not match.')
+
+        try:
+            conn = get_db_connection()
+            conn.execute('UPDATE users SET password_hash = ? WHERE email = ?',
+                         (generate_password_hash(new_password), email))
+            conn.commit()
+            conn.close()
+            session.pop('reset_email', None)
+            session.pop('reset_token', None)
+            session.pop('reset_token_expiry', None)
+            log_system_event('INFO', f'Password reset completed for {email}', 'auth')
+            flash('Password reset successfully! Please log in.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            return fail(f'Error: {str(e)}')
+
+    return render_template('reset_password.html',
+                           token=token, token_invalid=False, user_email=email)
+
+
+@app.route('/profile/delete-account')
+def delete_account():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if session.get('username') == 'admin':
+        flash('The primary admin account cannot be deleted.', 'danger')
+        return redirect(url_for('profile'))
+    try:
+        user_id  = session['user_id']
+        username = session.get('username')
+        conn = get_db_connection()
+        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        write_audit('ACCOUNT_DELETED', target=username)
+        session.clear()
+        flash('Your account has been permanently deleted.', 'info')
+    except Exception as e:
+        flash(f'Error deleting account: {str(e)}', 'danger')
+        return redirect(url_for('profile'))
+    return redirect(url_for('login'))
+
+
+# =============================================================================
+# EMAIL & PHONE VERIFICATION ROUTES
+# =============================================================================
+
+@app.route('/profile/verify-contact', methods=['GET'])
+def verify_contact_page():
+    """Show the combined email + phone verification page."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+
+    active_tab  = request.args.get('tab', 'email')
+    email_step  = 2 if session.get('email_verify_pending') else 1
+    phone_step  = 2 if session.get('phone_verify_pending') else 1
+
+    email_masked = None
+    if session.get('email_verify_pending'):
+        e = session['email_verify_pending']
+        p = e.split('@')
+        v = p[0][:2] if len(p[0]) > 2 else p[0][0]
+        email_masked = v + '***@' + p[1]
+
+    phone_masked = None
+    if session.get('phone_verify_pending'):
+        ph = session['phone_verify_pending']
+        phone_masked = ph[:3] + '***' + ph[-3:] if len(ph) >= 6 else ph
+
+    return render_template('verify_email.html',
+                           user=dict(user) if user else {},
+                           active_tab=active_tab,
+                           email_step=email_step,
+                           phone_step=phone_step,
+                           email_masked=email_masked,
+                           phone_masked=phone_masked)
+
+
+@app.route('/profile/send-email-verification', methods=['POST'])
+def send_email_verification():
+    """Send OTP to user's registered email, then redirect to verify_email.html step 2."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    try:
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        conn.close()
+
+        if not user:
+            flash('User not found.', 'danger')
+            return redirect(url_for('verify_contact_page'))
+
+        otp = generate_otp()
+        store_otp(user['email'], otp)
+        ok, err = send_otp_email(user['email'], otp)
+
+        if not ok:
+            flash(f'Could not send email: {err}', 'danger')
+            return redirect(url_for('verify_contact_page'))
+
+        session['email_verify_pending'] = user['email']
+        log_system_event('INFO', f'Email verification OTP sent to {user["email"]}',
+                         'profile', session['user_id'])
+
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+
+    return redirect(url_for('verify_contact_page') + '?tab=email')
+
+
+@app.route('/profile/verify-email', methods=['GET', 'POST'])
+def verify_email_otp_page():
+    """Enter the OTP to confirm email ownership."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    email = session.get('email_verify_pending', '')
+    if not email:
+        flash('No pending verification. Please request a new code.', 'warning')
+        return redirect(url_for('profile'))
+
+    parts   = email.split('@')
+    visible = parts[0][:2] if len(parts[0]) > 2 else parts[0][0]
+    masked  = visible + '***@' + parts[1]
+
+    if request.method == 'POST':
+        if request.form.get('action') == 'resend':
+            try:
+                otp = generate_otp()
+                store_otp(email, otp)
+                send_otp_email(email, otp)
+                flash('A new code has been sent.', 'info')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=email')
+
+        digits    = [request.form.get(f'd{i}', '') for i in range(1, 7)]
+        otp_input = ''.join(digits).strip()
+
+        if len(otp_input) != 6 or not otp_input.isdigit():
+            flash('Please enter all 6 digits.', 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=email')
+
+        valid, reason = verify_otp(email, otp_input)
+        if not valid:
+            flash(reason, 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=email')
+
+        mark_otp_used(email, otp_input)
+
+        conn = get_db_connection()
+        conn.execute('UPDATE users SET email_verified = 1 WHERE id = ?', (session['user_id'],))
+        conn.commit()
+        conn.close()
+
+        session.pop('email_verify_pending', None)
+        write_audit('EMAIL_VERIFIED')
+        log_system_event('INFO', f'Email verified for user {session["username"]}',
+                         'profile', session['user_id'])
+        flash('Email verified successfully!', 'success')
+        return redirect(url_for('profile'))
+
+    return redirect(url_for('verify_contact_page') + '?tab=email')
+
+
+@app.route('/profile/send-phone-verification', methods=['POST'])
+def send_phone_verification():
+    """Save phone number and send OTP (prints to console in dev mode)."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    phone = request.form.get('phone_number', '').strip()
+    if not phone or len(phone) < 7:
+        flash('Please enter a valid phone number.', 'danger')
+        return redirect(url_for('profile'))
+
+    try:
+        conn = get_db_connection()
+        conn.execute('UPDATE users SET phone_number = ?, phone_verified = 0 WHERE id = ?',
+                     (phone, session['user_id']))
+        conn.commit()
+        conn.close()
+
+        otp = generate_otp()
+        # In dev mode just reuse the email OTP store keyed by phone
+        store_otp(phone, otp)
+
+        ok, err = send_otp_sms(phone, otp)
+        if not ok:
+            flash(f'Could not send SMS: {err}', 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+        session['phone_verify_pending'] = phone
+        log_system_event('INFO', f'Phone OTP sent to {phone}',
+                         'profile', session['user_id'])
+        flash(f'Verification code sent to {phone}.', 'info')
+
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+
+    return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+
+@app.route('/profile/verify-phone', methods=['GET', 'POST'])
+def verify_phone_otp_page():
+    """Enter the OTP to confirm phone ownership."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    phone = session.get('phone_verify_pending', '')
+    if not phone:
+        flash('No pending verification. Please request a new code.', 'warning')
+        return redirect(url_for('profile'))
+
+    masked_phone = phone[:3] + '***' + phone[-3:] if len(phone) >= 6 else phone
+
+    if request.method == 'POST':
+        if request.form.get('action') == 'resend':
+            try:
+                otp = generate_otp()
+                store_otp(phone, otp)
+                send_otp_sms(phone, otp)
+                flash('A new code has been sent.', 'info')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+        digits    = [request.form.get(f'd{i}', '') for i in range(1, 7)]
+        otp_input = ''.join(digits).strip()
+
+        if len(otp_input) != 6 or not otp_input.isdigit():
+            flash('Please enter all 6 digits.', 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+        valid, reason = verify_otp(phone, otp_input)
+        if not valid:
+            flash(reason, 'danger')
+            return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+        mark_otp_used(phone, otp_input)
+
+        conn = get_db_connection()
+        conn.execute('UPDATE users SET phone_verified = 1 WHERE id = ?', (session['user_id'],))
+        conn.commit()
+        conn.close()
+
+        session.pop('phone_verify_pending', None)
+        write_audit('PHONE_VERIFIED')
+        log_system_event('INFO', f'Phone verified for user {session["username"]}',
+                         'profile', session['user_id'])
+        flash('Phone number verified successfully!', 'success')
+        return redirect(url_for('profile'))
+
+    return redirect(url_for('verify_contact_page') + '?tab=phone')
+
+
+@app.route('/profile/revoke-all-sessions', methods=['POST'])
+def revoke_all_sessions():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    write_audit('SESSIONS_REVOKED')
+    flash('All other sessions have been revoked.', 'success')
+    return redirect(url_for('profile'))
+
+
+@app.route('/profile/revoke-session/<int:session_id>', methods=['POST'])
+def revoke_session(session_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    write_audit('SESSION_REVOKED', target=str(session_id))
+    flash('Session revoked.', 'success')
+    return redirect(url_for('profile'))
 
 
 # Main application startup

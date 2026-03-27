@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Verify OTP — KAVACH IDS{% endblock %}
+{% block page_title %}Verify OTP{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── OTP digit boxes ──────────────────────────────────────── */
+    .otp-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin: 1.5rem 0;
+    }
+
+    .otp-digit {
+        width: 52px;
+        height: 60px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        background: var(--panel);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+        caret-color: var(--accent);
+    }
+
+    .otp-digit:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(14,165,233,.12);
+    }
+
+    .otp-digit.filled {
+        border-color: var(--accent);
+        background: rgba(14,165,233,.04);
+    }
+
+    .otp-digit.error {
+        border-color: var(--danger);
+        box-shadow: 0 0 0 3px rgba(244,63,94,.1);
+    }
+
+    /* ── Timer ────────────────────────────────────────────────── */
+    .otp-timer {
+        font-family: var(--mono);
+        font-size: .8125rem;
+        color: var(--text-muted);
+        text-align: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .otp-timer span {
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    .otp-timer.expiring span { color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height:72vh;">
+    <div class="col-lg-4 col-md-6 col-sm-10">
+
+        <!-- Icon + heading -->
+        <div class="text-center mb-4">
+            <div style="width:56px;height:56px;background:var(--navy);border-radius:14px;
+                        display:inline-flex;align-items:center;justify-content:center;
+                        box-shadow:0 0 0 1px var(--navy-border),0 8px 24px rgba(0,0,0,.18);">
+                <i class="bi bi-shield-check" style="font-size:1.5rem;color:var(--accent);"></i>
+            </div>
+            <h1 style="font-family:var(--mono);font-size:1.2rem;font-weight:600;
+                        color:var(--text-primary);margin-top:1rem;margin-bottom:.25rem;">
+                {% if purpose == 'phone' %}Verify Phone Number{% else %}Enter Verification Code{% endif %}
+            </h1>
+            <p style="font-size:0.8125rem;color:var(--text-muted);">
+                A 6-digit OTP was sent to
+                <strong style="color:var(--text-primary);">{{ masked_email }}</strong>
+            </p>
+        </div>
+
+        <div class="card" style="border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);">
+            <div style="height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+                        border-radius:var(--radius-lg) var(--radius-lg) 0 0;"></div>
+
+            <div class="card-body" style="padding:2rem;">
+
+                <!-- Flash messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for cat, msg in messages %}
+                    <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} py-2 mb-3">
+                        <i class="bi bi-{% if cat == 'success' %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %} me-2"></i>
+                        {{ msg }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <!-- OTP form -->
+                <form method="POST" action="{{ form_action or url_for('verify_otp_page') }}"
+                      id="otpForm" novalidate>
+
+                    <p style="font-size:.8125rem;color:var(--text-muted);
+                               text-align:center;margin-bottom:.5rem;">
+                        Enter the 6-digit code
+                    </p>
+
+                    <!-- 6 digit boxes -->
+                    <div class="otp-group">
+                        {% for i in range(1, 7) %}
+                        <input type="text" class="otp-digit" id="d{{ i }}"
+                               name="d{{ i }}" maxlength="1" inputmode="numeric"
+                               pattern="[0-9]" autocomplete="one-time-code">
+                        {% endfor %}
+                    </div>
+
+                    <!-- Countdown timer -->
+                    <div class="otp-timer" id="timerBox">
+                        Code expires in <span id="timerVal">10:00</span>
+                    </div>
+
+                    <!-- Error banner -->
+                    <div id="formBanner" style="display:none;" class="alert mb-3"></div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary" id="verifyBtn"
+                                style="padding:11px;font-size:.9375rem;">
+                            <i class="bi bi-shield-check me-1"></i>Verify Code
+                        </button>
+                    </div>
+
+                </form>
+
+                <!-- Resend form -->
+                <form method="POST" action="{{ form_action or url_for('verify_otp_page') }}"
+                      id="resendForm">
+                    <input type="hidden" name="action" value="resend">
+                </form>
+
+                <div class="text-center" style="border-top:1px solid var(--border);
+                                                padding-top:1.25rem;">
+                    <p style="font-size:.8125rem;color:var(--text-muted);margin-bottom:.5rem;">
+                        Didn't receive the code?
+                        <button type="button" id="resendBtn"
+                                onclick="handleResend()"
+                                style="background:none;border:none;color:var(--accent);
+                                       font-weight:600;font-size:.8125rem;cursor:pointer;
+                                       padding:0;">
+                            Resend OTP
+                        </button>
+                    </p>
+                    <a href="{{ url_for('forgot_password') }}"
+                       style="font-size:.8125rem;color:var(--text-muted);text-decoration:none;">
+                        <i class="bi bi-arrow-left me-1"></i>Use a different email
+                    </a>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <span style="font-family:var(--mono);font-size:.68rem;color:var(--text-faint);">
+                KAVACH IDS v2.0 &nbsp;·&nbsp; EPG Security Platform
+            </span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    /* ── Auto-focus and auto-advance between digit boxes ── */
+    const digits  = Array.from(document.querySelectorAll('.otp-digit'));
+    const EXPIRY  = 10 * 60; // 10 minutes in seconds
+
+    digits.forEach((input, idx) => {
+        input.addEventListener('input', e => {
+            // Allow only digits
+            input.value = input.value.replace(/\D/g, '').slice(-1);
+            input.classList.toggle('filled', input.value !== '');
+
+            if (input.value && idx < digits.length - 1) {
+                digits[idx + 1].focus();
+            }
+            // Auto-submit when last digit filled
+            if (idx === digits.length - 1 && input.value) {
+                setTimeout(() => {
+                    if (isComplete()) submitOtp();
+                }, 120);
+            }
+        });
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Backspace' && !input.value && idx > 0) {
+                digits[idx - 1].focus();
+                digits[idx - 1].value = '';
+                digits[idx - 1].classList.remove('filled');
+            }
+            if (e.key === 'ArrowLeft' && idx > 0)  digits[idx - 1].focus();
+            if (e.key === 'ArrowRight' && idx < digits.length - 1) digits[idx + 1].focus();
+        });
+
+        // Handle paste (e.g. paste "123456")
+        input.addEventListener('paste', e => {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData)
+                .getData('text').replace(/\D/g, '').slice(0, 6);
+            pasted.split('').forEach((ch, i) => {
+                if (digits[i]) {
+                    digits[i].value = ch;
+                    digits[i].classList.add('filled');
+                }
+            });
+            const next = Math.min(pasted.length, digits.length - 1);
+            digits[next].focus();
+            if (pasted.length === 6) setTimeout(submitOtp, 120);
+        });
+    });
+
+    // Focus first box on load
+    digits[0].focus();
+
+    function isComplete() {
+        return digits.every(d => d.value.match(/^\d$/));
+    }
+
+    function submitOtp() {
+        if (!isComplete()) {
+            showBanner('Please fill in all 6 digits.');
+            digits.forEach(d => d.classList.add('error'));
+            return;
+        }
+        const btn = document.getElementById('verifyBtn');
+        btn.innerHTML = '<span class="loading me-1"></span>Verifying…';
+        btn.disabled  = true;
+        document.getElementById('otpForm').submit();
+    }
+
+    /* ── Form submit ── */
+    document.getElementById('otpForm').addEventListener('submit', function(e) {
+        if (!isComplete()) {
+            e.preventDefault();
+            showBanner('Please fill in all 6 digits.');
+            digits.forEach(d => d.classList.add('error'));
+        }
+    });
+
+    /* ── Resend ── */
+    let resendCooldown = 0;
+    function handleResend() {
+        if (resendCooldown > 0) return;
+        resendCooldown = 60;
+        updateResendBtn();
+        document.getElementById('resendForm').submit();
+    }
+
+    function updateResendBtn() {
+        const btn = document.getElementById('resendBtn');
+        if (resendCooldown > 0) {
+            btn.textContent = `Resend in ${resendCooldown}s`;
+            btn.style.color = 'var(--text-faint)';
+            btn.style.cursor = 'not-allowed';
+            resendCooldown--;
+            setTimeout(updateResendBtn, 1000);
+        } else {
+            btn.textContent = 'Resend OTP';
+            btn.style.color = 'var(--accent)';
+            btn.style.cursor = 'pointer';
+        }
+    }
+
+    /* ── Countdown timer ── */
+    let secondsLeft = EXPIRY;
+    function tick() {
+        const m   = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+        const s   = (secondsLeft % 60).toString().padStart(2, '0');
+        const el  = document.getElementById('timerVal');
+        const box = document.getElementById('timerBox');
+        if (el) el.textContent = `${m}:${s}`;
+        if (secondsLeft <= 60) box.classList.add('expiring');
+        if (secondsLeft <= 0) {
+            box.innerHTML = '<span style="color:var(--danger);">Code expired — please request a new one.</span>';
+            digits.forEach(d => { d.disabled = true; d.classList.add('error'); });
+            document.getElementById('verifyBtn').disabled = true;
+            return;
+        }
+        secondsLeft--;
+        setTimeout(tick, 1000);
+    }
+    tick();
+
+    function showBanner(msg) {
+        const b = document.getElementById('formBanner');
+        b.className = 'alert alert-danger mb-3';
+        b.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${msg}`;
+        b.style.display = 'flex';
+    }
+</script>
+{% endblock %}

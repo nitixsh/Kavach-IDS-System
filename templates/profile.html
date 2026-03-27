@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — KAVACH IDS{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Layout ──────────────────────────────────────────────── */
+    .profile-grid {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 900px) {
+        .profile-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Left sidebar cards ──────────────────────────────────── */
+    .profile-avatar-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 2rem 1.5rem 1.5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .avatar-ring {
+        width: 88px; height: 88px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono);
+        font-size: 2rem; font-weight: 700; color: #fff;
+        margin: 0 auto 1rem;
+        box-shadow: 0 0 0 4px var(--panel), 0 0 0 6px rgba(14,165,233,.35),
+                    0 8px 24px rgba(14,165,233,.25);
+        position: relative; overflow: hidden;
+    }
+
+    .avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Online dot */
+    .avatar-status {
+        position: absolute; bottom: 4px; right: 4px;
+        width: 14px; height: 14px; border-radius: 50%;
+        background: var(--success);
+        border: 2px solid var(--panel);
+    }
+
+    .profile-name {
+        font-family: var(--mono);
+        font-size: .9375rem; font-weight: 700;
+        color: var(--text-primary); margin: 0 0 3px;
+    }
+
+    .profile-email {
+        font-size: .8rem; color: var(--text-muted); margin: 0 0 .9rem;
+    }
+
+    .role-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-family: var(--mono); font-size: .68rem; font-weight: 600;
+        padding: 4px 12px; border-radius: 50px;
+        background: rgba(14,165,233,.1);
+        border: 1px solid rgba(14,165,233,.25);
+        color: var(--accent); margin-bottom: 1.25rem;
+    }
+    .role-badge.admin {
+        background: rgba(245,158,11,.1);
+        border-color: rgba(245,158,11,.25);
+        color: var(--warning);
+    }
+
+    .change-photo-btn {
+        width: 100%; padding: 9px;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: .8125rem; font-weight: 500;
+        color: var(--text-muted); cursor: pointer;
+        transition: all .2s;
+    }
+    .change-photo-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(14,165,233,.04);
+    }
+
+    /* ── Sidebar Nav ─────────────────────────────────────────── */
+    .profile-nav-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .profile-nav-item {
+        display: flex; align-items: center; gap: 11px;
+        padding: 13px 18px;
+        font-size: .875rem; font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        transition: all .18s;
+        border-bottom: 1px solid var(--border);
+        background: transparent;
+    }
+    .profile-nav-item:last-child { border-bottom: none; }
+    .profile-nav-item i { font-size: 1rem; width: 18px; text-align: center; }
+
+    .profile-nav-item:hover {
+        background: var(--panel-alt);
+        color: var(--text-primary);
+    }
+
+    .profile-nav-item.active {
+        border-left-color: var(--accent);
+        color: var(--accent);
+        background: rgba(14,165,233,.05);
+        font-weight: 600;
+    }
+
+    /* ── Activity grid ───────────────────────────────────────── */
+    .activity-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .activity-label {
+        font-family: var(--mono); font-size: .62rem; font-weight: 600;
+        letter-spacing: .08em; text-transform: uppercase;
+        color: var(--text-faint); margin-bottom: .75rem;
+    }
+
+    .activity-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .625rem;
+    }
+
+    .activity-cell {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: .875rem 1rem;
+    }
+
+    .activity-val {
+        font-family: var(--mono);
+        font-size: 1.35rem; font-weight: 700;
+        line-height: 1.1; margin-bottom: 2px;
+    }
+
+    .activity-lbl {
+        font-size: .72rem; color: var(--text-muted);
+    }
+
+    /* ── Right panel ─────────────────────────────────────────── */
+    .profile-panel { display: none; }
+    .profile-panel.active { display: block; }
+
+    /* Section card */
+    .section-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-card-header {
+        display: flex; align-items: center; gap: 12px;
+        padding: 1.1rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .section-icon-sq {
+        width: 34px; height: 34px;
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .95rem; flex-shrink: 0;
+    }
+
+    .section-card-title {
+        font-size: .9375rem; font-weight: 700;
+        color: var(--text-primary); margin: 0;
+    }
+
+    .section-card-body { padding: 1.5rem; }
+
+    /* ── Security rows ───────────────────────────────────────── */
+    .security-row {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        padding: 1.1rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .security-row:last-child { border-bottom: none; }
+
+    .security-row-label {
+        font-size: .875rem; font-weight: 600;
+        color: var(--text-primary); margin-bottom: 2px;
+    }
+
+    .security-row-sub {
+        font-size: .78rem; color: var(--text-muted);
+    }
+
+    .security-2fa-active {
+        background: rgba(16,185,129,.06);
+        border-color: rgba(16,185,129,.2) !important;
+    }
+
+    /* ── Audit table ─────────────────────────────────────────── */
+    .audit-row {
+        display: flex; align-items: center; gap: 12px;
+        padding: 11px 1.5rem;
+        border-bottom: 1px solid var(--border);
+        font-size: .8125rem;
+    }
+    .audit-row:last-child { border-bottom: none; }
+
+    .audit-icon {
+        width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .75rem; flex-shrink: 0;
+    }
+
+    /* ── Danger zone ─────────────────────────────────────────── */
+    .danger-section {
+        border: 1px solid rgba(244,63,94,.25);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .danger-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: .875rem 1.5rem;
+        border-bottom: 1px solid rgba(244,63,94,.15);
+        background: rgba(244,63,94,.03);
+    }
+
+    .danger-row {
+        display: flex; align-items: center;
+        justify-content: space-between;
+        padding: 1.1rem 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h2 style="font-family:var(--mono);font-size:1.1rem;font-weight:600;
+                   color:var(--text-primary);margin:0;">
+            <i class="bi bi-person-circle me-2" style="color:var(--accent);"></i>My Profile
+        </h2>
+        <p style="font-size:.8125rem;color:var(--text-muted);margin:.25rem 0 0;">
+            Manage your account information and security settings
+        </p>
+    </div>
+</div>
+
+<div class="profile-grid">
+
+    <!-- ══════════════ LEFT SIDEBAR ══════════════ -->
+    <div>
+
+        <!-- Avatar card -->
+        <div class="profile-avatar-card">
+            <div style="position:relative;display:inline-block;">
+                <div class="avatar-ring" id="avatarDisplay">
+                    {% if user.avatar_url %}
+                        <img src="{{ user.avatar_url }}" id="avatarImg">
+                    {% else %}
+                        <span id="avatarInitial">{{ user.username[0]|upper if user.username else '?' }}</span>
+                    {% endif %}
+                </div>
+                <!-- Online status dot -->
+                <div class="avatar-status" style="position:absolute;bottom:6px;right:6px;
+                     width:14px;height:14px;border-radius:50%;
+                     background:var(--success);border:2.5px solid var(--panel);"></div>
+            </div>
+
+            <p class="profile-name">{{ user.full_name or user.username }}</p>
+            <p class="profile-email">{{ user.email }}</p>
+
+            <div class="role-badge {{ 'admin' if user.get('id') == 1 or user.get('username') == 'admin' else '' }}">
+                <i class="bi bi-circle-fill" style="font-size:.38rem;"></i>
+                {{ 'Admin' if user.get('id') == 1 or user.get('username') == 'admin' else 'Analyst' }}
+            </div>
+
+            <br>
+            <button class="change-photo-btn" onclick="document.getElementById('avatarFileInput').click()">
+                <i class="bi bi-camera me-1"></i> Change photo
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/gif"
+                   style="display:none;" onchange="handleAvatarChange(this)">
+        </div>
+
+        <!-- Nav -->
+        <div class="profile-nav-card">
+            <div class="profile-nav-item active" onclick="switchTab('account')">
+                <i class="bi bi-person"></i> Account info
+            </div>
+            <div class="profile-nav-item" onclick="switchTab('security')">
+                <i class="bi bi-shield-lock"></i> Security &amp; 2FA
+            </div>
+            <div class="profile-nav-item" onclick="switchTab('sessions')">
+                <i class="bi bi-display"></i> Sessions
+            </div>
+            <div class="profile-nav-item" onclick="switchTab('audit')">
+                <i class="bi bi-journal-text"></i> Audit log
+            </div>
+        </div>
+
+        <!-- Activity stats -->
+        <div class="activity-card">
+            <div class="activity-label">Activity</div>
+            <div class="activity-grid">
+                <div class="activity-cell">
+                    <div class="activity-val" style="color:var(--accent);">{{ total_analyses }}</div>
+                    <div class="activity-lbl">Analyses run</div>
+                </div>
+                <div class="activity-cell">
+                    <div class="activity-val" style="color:var(--danger);">{{ total_blocked }}</div>
+                    <div class="activity-lbl">IPs blocked</div>
+                </div>
+                <div class="activity-cell">
+                    <div class="activity-val" style="color:var(--success);">{{ days_active }}</div>
+                    <div class="activity-lbl">Days active</div>
+                </div>
+                <div class="activity-cell">
+                    <div class="activity-val" style="color:var(--warning);">
+                        {% if total_scanned >= 1000 %}
+                            {{ (total_scanned / 1000) | round(1) }}k
+                        {% else %}
+                            {{ total_scanned }}
+                        {% endif %}
+                    </div>
+                    <div class="activity-lbl">Records scanned</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /left -->
+
+
+    <!-- ══════════════ RIGHT PANELS ══════════════ -->
+    <div>
+
+        <!-- ── ACCOUNT INFO ── -->
+        <div id="panel-account" class="profile-panel active">
+
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-icon-sq" style="background:rgba(14,165,233,.1);color:var(--accent);">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <h5 class="section-card-title">Account information</h5>
+                </div>
+                <div class="section-card-body">
+                    <form method="POST" action="{{ url_for('update_profile') }}" id="profileForm">
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control"
+                                       value="{{ user.username }}"
+                                       style="background:var(--panel-alt);font-family:var(--mono);font-size:.875rem;"
+                                       readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email"
+                                       value="{{ user.email }}"
+                                       style="font-size:.875rem;" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Full name</label>
+                            <input type="text" class="form-control" name="full_name"
+                                   value="{{ user.full_name or '' }}"
+                                   placeholder="Enter your full name"
+                                   style="font-size:.875rem;">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Bio <span style="color:var(--text-faint);font-weight:400;">(optional)</span></label>
+                            <textarea class="form-control" name="bio" rows="2"
+                                      placeholder="A short bio…"
+                                      style="font-size:.875rem;resize:none;">{{ user.bio or '' }}</textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                                <i class="bi bi-check2 me-1"></i>Save changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div><!-- /panel-account -->
+
+
+        <!-- ── SECURITY & 2FA ── -->
+        <div id="panel-security" class="profile-panel">
+
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-icon-sq" style="background:rgba(245,158,11,.1);color:var(--warning);">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <h5 class="section-card-title">Security</h5>
+                </div>
+
+                <!-- Password row -->
+                <div class="security-row">
+                    <div>
+                        <div class="security-row-label">Password</div>
+                        <div class="security-row-sub">Last changed {{ user.created_at[:10] if user.created_at else '—' }}</div>
+                    </div>
+                    <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary"
+                       style="font-size:.8125rem;padding:7px 16px;">
+                        Change password
+                    </a>
+                </div>
+
+                <!-- Email Verification row -->
+                <div class="security-row {% if user.get('email_verified') %}security-2fa-active{% endif %}"
+                     style="border:1px solid transparent;margin:0 1rem;border-radius:var(--radius);
+                            {% if user.get('email_verified') %}border-color:rgba(16,185,129,.2);{% endif %}">
+                    <div>
+                        {% if user.get('email_verified') %}
+                        <div class="security-row-label" style="color:var(--success);">
+                            <i class="bi bi-check-circle-fill me-1"></i>Email verified
+                        </div>
+                        <div class="security-row-sub" style="color:var(--success);opacity:.8;">
+                            {{ user.email }} — confirmed
+                        </div>
+                        {% else %}
+                        <div class="security-row-label">
+                            <i class="bi bi-exclamation-circle me-1" style="color:var(--warning);"></i>
+                            Email not verified
+                        </div>
+                        <div class="security-row-sub">
+                            Verify <strong style="font-family:var(--mono);font-size:.8rem;">{{ user.email }}</strong>
+                            to secure your account
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if user.get('email_verified') %}
+                    <span style="font-family:var(--mono);font-size:.7rem;color:var(--success);
+                                 background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);
+                                 border-radius:50px;padding:5px 14px;white-space:nowrap;">
+                        <i class="bi bi-shield-check me-1"></i>Verified
+                    </span>
+                    {% else %}
+                    <a href="{{ url_for('verify_contact_page') }}?tab=email"
+                       class="btn btn-outline-primary"
+                       style="font-size:.8125rem;padding:7px 16px;white-space:nowrap;">
+                        <i class="bi bi-envelope-check me-1"></i>Verify email
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- Phone Verification row -->
+                <div class="security-row {% if user.get('phone_verified') %}security-2fa-active{% endif %}"
+                     style="border:1px solid transparent;margin:0 1rem;border-radius:var(--radius);
+                            {% if user.get('phone_verified') %}border-color:rgba(16,185,129,.2);{% endif %}">
+                    <div>
+                        {% if user.get('phone_verified') and user.get('phone_number') %}
+                        <div class="security-row-label" style="color:var(--success);">
+                            <i class="bi bi-check-circle-fill me-1"></i>Phone verified
+                        </div>
+                        <div class="security-row-sub" style="color:var(--success);opacity:.8;">
+                            {{ user.phone_number[:3] }}***{{ user.phone_number[-3:] }} — confirmed
+                        </div>
+                        {% elif user.get('phone_number') and not user.get('phone_verified') %}
+                        <div class="security-row-label">
+                            <i class="bi bi-exclamation-circle me-1" style="color:var(--warning);"></i>
+                            Phone number not verified
+                        </div>
+                        <div class="security-row-sub">
+                            {{ user.phone_number }} — pending verification
+                        </div>
+                        {% else %}
+                        <div class="security-row-label">Phone number</div>
+                        <div class="security-row-sub">No phone number added yet</div>
+                        {% endif %}
+                    </div>
+
+                    {% if user.get('phone_verified') %}
+                    <span style="font-family:var(--mono);font-size:.7rem;color:var(--success);
+                                 background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);
+                                 border-radius:50px;padding:5px 14px;white-space:nowrap;">
+                        <i class="bi bi-shield-check me-1"></i>Verified
+                    </span>
+                    {% else %}
+                    <a href="{{ url_for('verify_contact_page') }}?tab=phone"
+                       class="btn btn-outline-primary"
+                       style="font-size:.8125rem;padding:7px 16px;white-space:nowrap;">
+                        <i class="bi bi-phone me-1"></i>
+                        {{ 'Verify phone' if user.get('phone_number') else 'Add phone' }}
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- 2FA row -->
+                <div class="security-row {% if user.get('totp_enabled') %}security-2fa-active{% endif %}"
+                     style="border:1px solid transparent;margin:0 1rem;border-radius:var(--radius);
+                            {% if user.get('totp_enabled') %}border-color:rgba(16,185,129,.2);{% endif %}">
+                    <div>
+                        {% if user.get('totp_enabled') %}
+                        <div class="security-row-label" style="color:var(--success);">
+                            <i class="bi bi-check-circle-fill me-1"></i>Two-factor authentication
+                        </div>
+                        <div class="security-row-sub" style="color:var(--success);opacity:.8;">Active — TOTP authenticator</div>
+                        {% else %}
+                        <div class="security-row-label">Two-factor authentication</div>
+                        <div class="security-row-sub">Not enabled — add an extra layer of security</div>
+                        {% endif %}
+                    </div>
+                    {% if user.get('totp_enabled') %}
+                    <button class="btn" style="border:1px solid var(--danger);color:var(--danger);
+                                               font-size:.8125rem;padding:7px 16px;background:transparent;">
+                        Disable 2FA
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-primary" style="font-size:.8125rem;padding:7px 16px;">
+                        Enable 2FA
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Active sessions row -->
+                <div class="security-row">
+                    <div>
+                        <div class="security-row-label">Active sessions</div>
+                        <div class="security-row-sub">1 device — current browser session</div>
+                    </div>
+                    <form method="POST" action="{{ url_for('revoke_all_sessions') }}">
+                        <button type="submit" class="btn"
+                                style="border:1px solid var(--danger);color:var(--danger);
+                                       font-size:.8125rem;padding:7px 16px;background:transparent;">
+                            Revoke all
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Danger zone -->
+            <div class="danger-section">
+                <div class="danger-header">
+                    <div style="width:30px;height:30px;border-radius:var(--radius-sm);
+                                background:rgba(244,63,94,.1);display:flex;align-items:center;
+                                justify-content:center;">
+                        <i class="bi bi-exclamation-triangle" style="color:var(--danger);font-size:.85rem;"></i>
+                    </div>
+                    <span style="font-size:.875rem;font-weight:700;color:var(--danger);">Danger zone</span>
+                </div>
+                <div class="danger-row">
+                    <div>
+                        <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">
+                            Delete account
+                        </div>
+                        <div style="font-size:.78rem;color:var(--text-muted);">
+                            Permanently remove your account and all data
+                        </div>
+                    </div>
+                    {% if user.get('username') != 'admin' %}
+                    <a href="{{ url_for('delete_account') }}"
+                       class="btn"
+                       style="border:1px solid var(--danger);color:var(--danger);
+                              font-size:.8125rem;padding:7px 16px;background:transparent;"
+                       onclick="return confirm('This will permanently delete your account. Are you sure?')">
+                        Delete account
+                    </a>
+                    {% else %}
+                    <button class="btn" disabled
+                            style="border:1px solid var(--border);color:var(--text-faint);
+                                   font-size:.8125rem;padding:7px 16px;background:transparent;"
+                            title="Admin account cannot be deleted">
+                        Protected
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div><!-- /panel-security -->
+
+
+        <!-- ── SESSIONS ── -->
+        <div id="panel-sessions" class="profile-panel">
+
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-icon-sq" style="background:rgba(99,102,241,.1);color:var(--info);">
+                        <i class="bi bi-display"></i>
+                    </div>
+                    <h5 class="section-card-title">Active Sessions</h5>
+                    <span class="ms-auto" style="font-family:var(--mono);font-size:.7rem;
+                          color:var(--text-faint);background:var(--panel-alt);
+                          border:1px solid var(--border);border-radius:50px;padding:3px 10px;">
+                        1 device
+                    </span>
+                </div>
+
+                <!-- Current session -->
+                <div style="padding:1.25rem 1.5rem;display:flex;align-items:center;
+                            justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="width:40px;height:40px;border-radius:var(--radius);
+                                    background:rgba(14,165,233,.08);
+                                    display:flex;align-items:center;justify-content:center;">
+                            <i class="bi bi-laptop" style="font-size:1.1rem;color:var(--accent);"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:.875rem;font-weight:600;color:var(--text-primary);">
+                                Current session
+                            </div>
+                            <div style="font-size:.78rem;color:var(--text-muted);">
+                                <i class="bi bi-geo-alt me-1"></i>Active now
+                                &nbsp;·&nbsp;
+                                <span style="font-family:var(--mono);">{{ request.remote_addr }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span style="font-family:var(--mono);font-size:.7rem;color:var(--success);
+                          background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);
+                          border-radius:50px;padding:3px 10px;">
+                        <i class="bi bi-circle-fill me-1" style="font-size:.35rem;"></i>Current
+                    </span>
+                </div>
+
+                <div style="padding:0 1.5rem 1.25rem;border-top:1px solid var(--border);padding-top:1.25rem;">
+                    <form method="POST" action="{{ url_for('revoke_all_sessions') }}">
+                        <button type="submit" class="btn btn-outline-secondary" style="font-size:.8125rem;">
+                            <i class="bi bi-shield-x me-1"></i>Revoke all other sessions
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        </div><!-- /panel-sessions -->
+
+
+        <!-- ── AUDIT LOG ── -->
+        <div id="panel-audit" class="profile-panel">
+
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-icon-sq" style="background:rgba(99,102,241,.08);color:var(--info);">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <h5 class="section-card-title">Audit Log</h5>
+                    <span class="ms-auto chip">Last 20 events</span>
+                </div>
+
+                {% if audit_logs %}
+                    {% for log in audit_logs %}
+                    <div class="audit-row">
+                        <div class="audit-icon"
+                             style="background:{% if 'DELETE' in log.action %}rgba(244,63,94,.08){% elif 'PASSWORD' in log.action %}rgba(245,158,11,.08){% else %}rgba(14,165,233,.08){% endif %};">
+                            <i class="bi {% if 'DELETE' in log.action %}bi-trash{% elif 'PASSWORD' in log.action %}bi-key{% elif 'SESSION' in log.action %}bi-display{% else %}bi-pencil{% endif %}"
+                               style="font-size:.72rem;color:{% if 'DELETE' in log.action %}var(--danger){% elif 'PASSWORD' in log.action %}var(--warning){% else %}var(--accent){% endif %};"></i>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:500;color:var(--text-primary);font-size:.8125rem;">
+                                {{ log.action | replace('_', ' ') | title }}
+                            </div>
+                            {% if log.details %}
+                            <div style="font-size:.75rem;color:var(--text-muted);
+                                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                {{ log.details }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div style="font-family:var(--mono);font-size:.72rem;
+                                    color:var(--text-faint);flex-shrink:0;">
+                            {{ log.timestamp[:16] if log.timestamp else '—' }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div style="padding:3rem 1.5rem;text-align:center;">
+                    <div style="width:44px;height:44px;border-radius:50%;
+                                background:var(--panel-alt);display:inline-flex;
+                                align-items:center;justify-content:center;margin-bottom:.75rem;">
+                        <i class="bi bi-journal-text" style="color:var(--text-faint);"></i>
+                    </div>
+                    <p style="font-family:var(--mono);font-size:.78rem;
+                              color:var(--text-faint);margin:0;">No audit events recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div><!-- /panel-audit -->
+
+    </div><!-- /right -->
+</div>
+
+<script>
+    /* ── Tab switching ── */
+    function switchTab(name) {
+        // Hide all panels
+        document.querySelectorAll('.profile-panel').forEach(p => p.classList.remove('active'));
+        // Deactivate all nav items
+        document.querySelectorAll('.profile-nav-item').forEach(n => n.classList.remove('active'));
+
+        // Activate selected
+        document.getElementById('panel-' + name).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    /* ── Save profile button loading state ── */
+    document.getElementById('profileForm')?.addEventListener('submit', function() {
+        const btn = document.getElementById('saveProfileBtn');
+        btn.innerHTML = '<span class="loading me-1"></span>Saving…';
+        btn.disabled = true;
+    });
+
+    /* ── Avatar change ── */
+    function handleAvatarChange(input) {
+        if (!input.files || !input.files[0]) return;
+        if (input.files[0].size > 2 * 1024 * 1024) {
+            alert('Image must be under 2 MB.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+            const display = document.getElementById('avatarDisplay');
+            display.innerHTML = `<img src="${e.target.result}"
+                style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+</script>
+
+<!-- ── Phone Number Modal ─────────────────────────────────────── -->
+<div id="phoneModal" style="display:none;position:fixed;inset:0;z-index:1060;
+     background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+    <div style="background:var(--panel);border:1px solid var(--border);
+                border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
+                width:100%;max-width:420px;margin:1rem;overflow:hidden;">
+
+        <div style="height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div>
+
+        <div style="padding:1.25rem 1.5rem;display:flex;align-items:center;
+                    justify-content:space-between;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;border-radius:var(--radius-sm);
+                            background:rgba(14,165,233,.1);display:flex;align-items:center;
+                            justify-content:center;">
+                    <i class="bi bi-phone" style="color:var(--accent);font-size:.9rem;"></i>
+                </div>
+                <h6 style="margin:0;font-weight:600;color:var(--text-primary);">
+                    {% if user.get('phone_number') %}Update{% else %}Add{% endif %} Phone Number
+                </h6>
+            </div>
+            <button onclick="document.getElementById('phoneModal').style.display='none'"
+                    style="background:none;border:none;color:var(--text-faint);
+                           font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('send_phone_verification') }}"
+              style="padding:1.5rem;">
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="bi bi-phone me-1" style="color:var(--accent);"></i>
+                    Phone Number
+                </label>
+                <input type="tel" class="form-control" name="phone_number"
+                       value="{{ user.get('phone_number') or '' }}"
+                       placeholder="+91 98765 43210" required
+                       style="font-family:var(--mono);font-size:.875rem;">
+                <div class="form-text mt-1" style="font-size:.75rem;">
+                    Include country code (e.g. +91 for India)
+                </div>
+            </div>
+            <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary"
+                        onclick="document.getElementById('phoneModal').style.display='none'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send me-1"></i>Send OTP
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

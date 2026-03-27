@@ -27,7 +27,23 @@
         margin-bottom: 1.5rem;
     }
 
-    /* Modal overrides */
+    /* ── ROOT CAUSE FIX ─────────────────────────────────────────
+       base.html runs: querySelectorAll(".card, .stat-card")
+       and sets opacity:0 on EVERY .card — including .modal-content.
+       When the modal opens, its inner content is invisible and
+       unclickable → page appears frozen.
+       These rules force modal elements to always stay fully visible,
+       overriding whatever base.html's animation does to them.
+    ─────────────────────────────────────────────────────────── */
+    #deleteModal,
+    #deleteModal .modal-content,
+    #deleteModal .modal-dialog {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    /* Modal styling */
     .modal-content {
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
@@ -59,6 +75,7 @@
     .modal-header h5 i { color: var(--danger); }
 
     .modal-body { padding: 1.5rem; font-size: .875rem; color: var(--text-body); }
+
     .modal-footer {
         border-top: 1px solid var(--border);
         padding: 1rem 1.5rem;
@@ -233,21 +250,31 @@
                             {% endif %}
                         </td>
                         <td style="text-align:right;">
-                            {% if user.id != session.user_id %}
+                            {% if user.id == session.user_id %}
+                            {# ── Own row: You badge + modal delete ── #}
+                            <div style="display:inline-flex;align-items:center;gap:8px;">
+                                <span class="badge badge-info">You</span>
+                                <button type="button"
+                                        class="btn btn-danger"
+                                        style="padding:5px 12px;font-size:.78rem;"
+                                        onclick="confirmDelete('{{ user.username }}', {{ user.id }})"
+                                        title="Delete my account">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            {% elif session.username == 'admin' %}
+                            {# ── Admin row: full Activate/Deactivate + Delete ── #}
                             <div style="display:inline-flex;gap:6px;">
-                                <form method="POST"
-                                      action="{{ url_for('admin_toggle_user_status', user_id=user.id) }}"
-                                      style="display:inline;"
-                                      onsubmit="return confirm('{% if user.is_active %}Deactivate{% else %}Activate{% endif %} {{ user.username }}?')">
-                                    <button type="submit"
-                                            class="btn {% if user.is_active %}btn-ghost{% else %}btn-success{% endif %}"
-                                            style="padding:5px 12px;font-size:.78rem;"
-                                            title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %} user">
-                                        <i class="bi {% if user.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
-                                        {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
-                                    </button>
-                                </form>
-                                <button class="btn btn-danger"
+                                <button type="button"
+                                        class="btn {% if user.is_active %}btn-ghost{% else %}btn-success{% endif %}"
+                                        style="padding:5px 12px;font-size:.78rem;"
+                                        onclick="confirmToggle('{{ user.username }}', {{ user.id }}, {{ 'true' if user.is_active else 'false' }})"
+                                        title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %} user">
+                                    <i class="bi {% if user.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                                    {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </button>
+                                <button type="button"
+                                        class="btn btn-danger"
                                         style="padding:5px 12px;font-size:.78rem;"
                                         onclick="confirmDelete('{{ user.username }}', {{ user.id }})"
                                         title="Delete user">
@@ -255,7 +282,8 @@
                                 </button>
                             </div>
                             {% else %}
-                            <span class="badge badge-info">You</span>
+                            {# ── Other users: no actions on other accounts ── #}
+                            <span style="font-size:0.78rem;color:var(--text-faint);">—</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -282,8 +310,42 @@
     </div>
 </div>
 
+
+<!-- ── Toggle Status Modal ──────────────────────────────────── -->
+<div class="modal fade" id="toggleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" id="toggleModalHeader">
+                <h5 id="toggleModalTitle">
+                    <i class="bi bi-person-check-fill" id="toggleModalIcon"></i>
+                    <span id="toggleModalHeading">Confirm Status Change</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:.5rem;" id="toggleModalMsg"></p>
+                <div id="toggleModalWarning"
+                     style="border-radius:var(--radius);padding:.875rem 1rem;font-size:.8125rem;
+                            display:flex;align-items:center;gap:8px;">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span id="toggleModalWarningText"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <form id="toggleForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn" id="toggleSubmitBtn">
+                        <i class="bi" id="toggleSubmitIcon"></i>
+                        <span id="toggleSubmitText"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── Delete Modal ──────────────────────────────────────────── -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header danger">
@@ -291,7 +353,7 @@
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     Confirm User Deletion
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom:.5rem;">
@@ -321,23 +383,91 @@
 
 {% block extra_js %}
 <script>
+    // ── ROOT CAUSE FIX (JS side) ──────────────────────────────────
+    // base.html's DOMContentLoaded sets opacity:0 on ALL .card elements
+    // including .modal-content. We run AFTER base.html's setTimeout
+    // animations complete (they use i*60ms; with ~10 cards = ~600ms max)
+    // and force the modal back to fully visible.
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+            var mc = document.querySelector('#deleteModal .modal-content');
+            if (mc) {
+                mc.style.opacity = '1';
+                mc.style.transform = 'none';
+                mc.style.transition = 'none';
+            }
+        }, 800); // runs after base.html card animations finish
+    });
+
+    // ── Toggle status modal ──────────────────────────────────────
+    var _toggleModalEl = document.getElementById('toggleModal');
+    var _toggleModal   = new bootstrap.Modal(_toggleModalEl, { backdrop: true, keyboard: true });
+
+    function confirmToggle(username, userId, isActive) {
+        var action = isActive ? 'Deactivate' : 'Activate';
+        var icon   = isActive ? 'bi-pause-circle-fill' : 'bi-play-circle-fill';
+        var btnCls = isActive ? 'btn-warning' : 'btn-success';
+        var warnBg = isActive
+            ? 'background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);color:#78350f;'
+            : 'background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);color:#065f46;';
+        var warnText = isActive
+            ? 'The user will lose access to the system immediately.'
+            : 'The user will regain full access to the system.';
+
+        document.getElementById('toggleModalHeading').textContent = action + ' User';
+        document.getElementById('toggleModalIcon').className = 'bi ' + icon;
+        document.getElementById('toggleModalMsg').innerHTML =
+            'You are about to <strong>' + action.toLowerCase() + '</strong> the account of ' +
+            '<strong style="font-family:var(--mono);color:var(--' + (isActive ? 'warning' : 'success') + ');">' + username + '</strong>.';
+        document.getElementById('toggleModalWarning').setAttribute('style',
+            'border-radius:var(--radius);padding:.875rem 1rem;font-size:.8125rem;display:flex;align-items:center;gap:8px;' + warnBg);
+        document.getElementById('toggleModalWarningText').textContent = warnText;
+
+        var submitBtn = document.getElementById('toggleSubmitBtn');
+        submitBtn.className = 'btn ' + btnCls;
+        document.getElementById('toggleSubmitIcon').className = 'bi ' + icon;
+        document.getElementById('toggleSubmitText').textContent = action + ' User';
+
+        document.getElementById('toggleForm').action =
+            "{{ url_for('admin_toggle_user_status', user_id=0) }}".replace('0', userId);
+
+        _toggleModal.show();
+    }
+
+    _toggleModalEl.addEventListener('hidden.bs.modal', function () {
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
+    });
+
+    // ── Single reusable modal instance ───────────────────────────
+    var _deleteModalEl = document.getElementById('deleteModal');
+    var _deleteModal   = new bootstrap.Modal(_deleteModalEl, { backdrop: true, keyboard: true });
+
     function confirmDelete(username, userId) {
         document.getElementById('deleteUsername').textContent = username;
         document.getElementById('deleteForm').action =
             "{{ url_for('admin_delete_user', user_id=0) }}".replace('0', userId);
-        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        _deleteModal.show();
     }
 
+    // Clean up stray backdrop/body class after modal closes to prevent freeze
+    _deleteModalEl.addEventListener('hidden.bs.modal', function () {
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
+    });
+
     // Auto-submit on filter select change
-    ['sort','order','status'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', () => el.closest('form').submit());
+    ['sort', 'order', 'status'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', function () { el.closest('form').submit(); });
     });
 
     // Bootstrap tooltips
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-bs-toggle="tooltip"]')
-            .forEach(el => new bootstrap.Tooltip(el));
+            .forEach(function (el) { new bootstrap.Tooltip(el); });
     });
 </script>
 {% endblock %}
