@@ -1,3 +1,34 @@
+import os
+import requests
+import joblib
+
+MODEL_DIR = "models"
+MODEL_PATH = os.path.join(MODEL_DIR, "best_ids_model.pkl")
+
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+try:
+    if not os.path.exists(MODEL_PATH):
+        print("⬇️ Downloading model...")
+
+        url = "https://drive.google.com/uc?export=download&id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
+
+        r = requests.get(url)
+        r.raise_for_status()
+
+        with open(MODEL_PATH, "wb") as f:
+            f.write(r.content)
+
+        print("✅ Model downloaded successfully")
+
+    model = joblib.load(MODEL_PATH)
+    print("✅ Model loaded successfully")
+
+except Exception as e:
+    print(f"❌ Error loading model: {e}")
+    model = None
+    
+    
 from scapy.all import sniff, TCP, IP, UDP, ICMP, get_if_list
 from collections import defaultdict
 import time
