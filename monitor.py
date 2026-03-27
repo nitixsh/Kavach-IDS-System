@@ -1,6 +1,6 @@
 import os
-import requests
 import joblib
+import gdown
 
 MODEL_DIR = "models"
 MODEL_PATH = os.path.join(MODEL_DIR, "best_ids_model.pkl")
@@ -9,17 +9,15 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 
 try:
     if not os.path.exists(MODEL_PATH):
-        print("⬇️ Downloading model...")
+        print("⬇️ Downloading model with gdown...")
 
-        url = "https://drive.google.com/uc?export=download&id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
+        url = "https://drive.google.com/uc?id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
 
-        r = requests.get(url)
-        r.raise_for_status()
-
-        with open(MODEL_PATH, "wb") as f:
-            f.write(r.content)
+        gdown.download(url, MODEL_PATH, quiet=False)
 
         print("✅ Model downloaded successfully")
+
+    print("📦 File size:", os.path.getsize(MODEL_PATH))
 
     model = joblib.load(MODEL_PATH)
     print("✅ Model loaded successfully")

@@ -1,4 +1,4 @@
-
+gdown==5.2.0
 flask==3.1.2
 joblib==1.4.2
 numpy==1.26.4
