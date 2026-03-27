@@ -1,3 +1,32 @@
+import os
+import joblib
+import gdown
+
+MODEL_DIR = "models"
+MODEL_PATH = os.path.join(MODEL_DIR, "best_ids_model.pkl")
+
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+try:
+    if not os.path.exists(MODEL_PATH):
+        print("⬇️ Downloading model with gdown...")
+
+        url = "https://drive.google.com/uc?id=1xzJ9LuasAvh7ZrNZWqKzwhr0E5l4oI81"
+
+        gdown.download(url, MODEL_PATH, quiet=False)
+
+        print("✅ Model downloaded successfully")
+
+    print("📦 File size:", os.path.getsize(MODEL_PATH))
+
+    model = joblib.load(MODEL_PATH)
+    print("✅ Model loaded successfully")
+
+except Exception as e:
+    print(f"❌ Error loading model: {e}")
+    model = None
+    
+    
 import pandas as pd
 import numpy as np
 import joblib
