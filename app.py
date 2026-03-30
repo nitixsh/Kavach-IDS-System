@@ -56,7 +56,7 @@ VONAGE_API_KEY    = os.environ.get('VONAGE_API_KEY',    'b54ec379')   # e.g. a1b
 VONAGE_API_SECRET = os.environ.get('VONAGE_API_SECRET', 'KKb4o3J9fcF0EnCp')   # from Vonage dashboard
 VONAGE_FROM       = os.environ.get('VONAGE_FROM',       'KAVACH')  # sender name or your Vonage number
 
-OTP_EXPIRY_MINUTES = 10   # OTP valid for 10 minutes
+OTP_EXPIRY_MINUTES = 1   # OTP valid for 10 minutes
 
 
 # =============================================================================
@@ -171,6 +171,7 @@ def send_otp_sms(phone, otp):
             return False, err
     except Exception as e:
         return False, str(e)
+
 
 
 def store_otp(key, otp):
@@ -592,6 +593,7 @@ def index():
         return redirect(url_for('dashboard'))
     # Everyone else sees the public landing page
     return render_template('landing_page.html')
+
 
 @app.route('/info')
 def info():
@@ -1076,6 +1078,14 @@ def reports():
                              filters={})
 
 
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
 @app.route('/download_report/<format>')
 def download_report(format):
     if 'user_id' not in session:
@@ -1354,6 +1364,8 @@ def before_request():
         'forgot_password',  # Password reset flow
         'verify_otp_page',
         'reset_password',
+        'terms',            # Public legal pages — no login required
+        'privacy',
     }
     if request.endpoint in PUBLIC_ENDPOINTS:
         return

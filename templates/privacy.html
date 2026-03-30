@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — KAVACH IDS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --white:#fff;--ink:#080c14;--sub:#4a5568;--muted:#718096;--faint:#a0aec0;
+  --bg:#f7f9fc;--border:#e2e8f0;
+  --accent:#1a47e8;--accent2:#6366f1;--accent-lt:#eef1fd;--accent-dk:#1239c4;
+  --success:#059669;--warn:#d97706;--danger:#dc2626;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --gsans:'Geist',sans-serif;
+  --display:'Bricolage Grotesque',sans-serif;
+  --serif:'Instrument Serif',serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth;height:100%}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    radial-gradient(circle at 20% 20%,rgba(26,71,232,.06) 0%,transparent 50%),
+    radial-gradient(circle at 80% 80%,rgba(99,102,241,.06) 0%,transparent 50%),
+    radial-gradient(circle,rgba(26,71,232,.04) 1px,transparent 1px);
+  background-size:100% 100%,100% 100%,28px 28px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── Navbar ── */
+.nav{position:relative;z-index:10;background:rgba(255,255,255,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,0,0,.07)}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:64px}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-mark{width:34px;height:34px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.nav-logo-mark svg{width:18px;height:18px}
+.nav-logo-name{font-family:var(--display);font-size:.9375rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.nav-logo-name span{color:var(--accent)}
+.nav-back{display:flex;align-items:center;gap:7px;font-size:.84rem;font-weight:500;color:var(--sub);text-decoration:none;padding:7px 14px;border-radius:8px;transition:color .15s,background .15s}
+.nav-back:hover{color:var(--ink);background:var(--border)}
+.nav-back svg{width:15px;height:15px}
+
+/* ── Page ── */
+.page{flex:1;display:flex;justify-content:center;padding:40px 20px 60px;position:relative;z-index:1}
+
+/* ── Doc card ── */
+.doc-card{width:100%;max-width:760px;background:var(--white);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);animation:cIn .35s cubic-bezier(.16,1,.3,1) both}
+@keyframes cIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-bar{height:3px;background:linear-gradient(90deg,transparent,#1a47e8 30%,#6366f1 70%,transparent)}
+
+/* ── Doc header ── */
+.doc-head{padding:32px 36px 24px;border-bottom:1px solid var(--border)}
+.doc-badge{display:inline-flex;align-items:center;gap:5px;background:var(--accent-lt);color:var(--accent);font-family:var(--gsans);font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:12px;letter-spacing:.03em;text-transform:uppercase}
+.doc-badge svg{width:11px;height:11px}
+.doc-title{font-family:var(--display);font-size:1.65rem;font-weight:800;color:var(--ink);line-height:1.2;letter-spacing:-.02em;margin-bottom:8px}
+.doc-meta{font-family:var(--gsans);font-size:.78rem;color:var(--faint);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.doc-meta span{display:flex;align-items:center;gap:4px}
+.doc-meta svg{width:12px;height:12px}
+
+/* ── TOC ── */
+.toc{margin:24px 36px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+.toc-label{font-family:var(--gsans);font-size:.72rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:2px}
+.toc-list a{font-family:var(--gsans);font-size:.8rem;color:var(--sub);text-decoration:none;display:flex;align-items:center;gap:7px;padding:3px 0;transition:color .15s}
+.toc-list a:hover{color:var(--accent)}
+.toc-list a::before{content:attr(data-n);font-family:var(--mono);font-size:.65rem;color:var(--faint);min-width:18px}
+
+/* ── Doc body ── */
+.doc-body{padding:4px 36px 32px}
+.doc-section{margin-top:28px;scroll-margin-top:90px}
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sec-num{font-family:var(--mono);font-size:.7rem;color:var(--accent);background:var(--accent-lt);padding:2px 7px;border-radius:5px;font-weight:500}
+.sec-title{font-family:var(--display);font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.doc-section p{font-size:.875rem;color:var(--sub);line-height:1.75;margin-bottom:10px}
+.doc-section ul,.doc-section ol{padding-left:20px;margin-bottom:10px}
+.doc-section li{font-size:.875rem;color:var(--sub);line-height:1.75;margin-bottom:4px}
+.doc-section strong{color:var(--ink);font-weight:600}
+.doc-section a{color:var(--accent);text-decoration:none;font-weight:500}
+.doc-section a:hover{text-decoration:underline}
+
+/* ── Highlight box ── */
+.hl-box{background:var(--accent-lt);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.835rem;color:var(--sub);line-height:1.65}
+.hl-box strong{color:var(--accent)}
+
+/* ── Data table ── */
+.data-tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin:14px 0}
+.data-tbl th{font-family:var(--gsans);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);text-align:left;padding:8px 12px;background:var(--bg);border-bottom:2px solid var(--border)}
+.data-tbl td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--sub);line-height:1.55;vertical-align:top}
+.data-tbl tr:last-child td{border-bottom:none}
+
+/* ── Divider ── */
+.sec-div{height:1px;background:var(--border);margin:28px 0 0}
+
+/* ── Trust footer ── */
+.auth-foot{padding:12px 28px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px}
+.tri{display:flex;align-items:center;gap:4px;font-size:.67rem;color:var(--faint);font-weight:500;font-family:var(--gsans)}
+.tri svg{width:12px;height:12px}
+
+/* ── Page footer ── */
+.page-foot{position:relative;z-index:1;text-align:center;padding:20px;font-family:var(--mono);font-size:.72rem;color:var(--faint)}
+.page-foot a{color:var(--faint);text-decoration:none;transition:color .15s}
+.page-foot a:hover{color:var(--sub)}
+
+/* ── Also-see chips ── */
+.also-see{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 36px;border-top:1px solid var(--border);background:var(--bg)}
+.also-lbl{font-family:var(--gsans);font-size:.72rem;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.also-chip{display:flex;align-items:center;gap:6px;background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:5px 13px;font-family:var(--gsans);font-size:.78rem;font-weight:500;color:var(--sub);text-decoration:none;transition:border-color .15s,color .15s}
+.also-chip:hover{border-color:var(--accent);color:var(--accent)}
+.also-chip svg{width:12px;height:12px}
+
+@media(max-width:600px){
+  .doc-head{padding:24px 20px 18px}
+  .doc-body{padding:4px 20px 28px}
+  .toc{margin:16px 20px}
+  .also-see{padding:14px 20px}
+  .nav-inner{padding:0 16px}
+  .auth-foot{padding:10px 18px}
+  .data-tbl{display:block;overflow-x:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-mark">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#fff" opacity=".9"/>
+          <path d="M9 12l2 2 4-4" stroke="#0d1117" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="nav-logo-name">KAVACH <span>IDS</span></span>
+    </a>
+    <a href="/" class="nav-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+      Back to home
+    </a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<main class="page">
+  <div class="doc-card">
+    <div class="modal-bar"></div>
+
+    <!-- Header -->
+    <div class="doc-head">
+      <div class="doc-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Privacy
+      </div>
+      <h1 class="doc-title">Privacy Policy</h1>
+      <div class="doc-meta">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Effective: January 1, 2025
+        </span>
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          KAVACH IDS · Intrusion Detection System
+        </span>
+      </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="toc">
+      <div class="toc-label">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#p1" data-n="01">Information We Collect</a></li>
+        <li><a href="#p2" data-n="02">How We Use Your Information</a></li>
+        <li><a href="#p3" data-n="03">Information Sharing &amp; Disclosure</a></li>
+        <li><a href="#p4" data-n="04">Data Retention</a></li>
+        <li><a href="#p5" data-n="05">Cookies &amp; Tracking</a></li>
+        <li><a href="#p6" data-n="06">Your Rights &amp; Choices</a></li>
+        <li><a href="#p7" data-n="07">Security</a></li>
+        <li><a href="#p8" data-n="08">Children's Privacy</a></li>
+        <li><a href="#p9" data-n="09">Changes to This Policy</a></li>
+        <li><a href="#p10" data-n="10">Contact &amp; Data Controller</a></li>
+      </ul>
+    </div>
+
+    <!-- Body -->
+    <div class="doc-body">
+
+      <div class="hl-box">
+        <strong>Your privacy matters to us.</strong> This Policy explains what data KAVACH IDS collects, why we collect it, and how we protect it. We never sell your personal data to third parties.
+      </div>
+
+      <!-- §1 -->
+      <div class="doc-section" id="p1">
+        <div class="sec-head">
+          <span class="sec-num">01</span>
+          <span class="sec-title">Information We Collect</span>
+        </div>
+        <p>We collect information you provide directly and information generated automatically when you use the Service:</p>
+        <table class="data-tbl">
+          <thead>
+            <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Account data</strong></td>
+              <td>Username, email address, hashed password, OAuth identifiers (Google, GitHub, Microsoft)</td>
+              <td>You / OAuth provider</td>
+            </tr>
+            <tr>
+              <td><strong>Profile data</strong></td>
+              <td>Display name, profile photo URL</td>
+              <td>You / OAuth provider</td>
+            </tr>
+            <tr>
+              <td><strong>Usage data</strong></td>
+              <td>Login timestamps, pages visited, features used, dashboard interactions</td>
+              <td>Automatically collected</td>
+            </tr>
+            <tr>
+              <td><strong>Device &amp; log data</strong></td>
+              <td>IP address, browser type, operating system, referrer URL</td>
+              <td>Automatically collected</td>
+            </tr>
+            <tr>
+              <td><strong>Security telemetry</strong></td>
+              <td>Network events and alerts you submit for analysis</td>
+              <td>You</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §2 -->
+      <div class="doc-section" id="p2">
+        <div class="sec-head">
+          <span class="sec-num">02</span>
+          <span class="sec-title">How We Use Your Information</span>
+        </div>
+        <p>We use your information for the following purposes:</p>
+        <ul>
+          <li><strong>Service delivery</strong> — authenticate your account, operate dashboards, generate alerts.</li>
+          <li><strong>Security</strong> — detect fraud, abuse, and unauthorised access to your account or ours.</li>
+          <li><strong>Communication</strong> — send transactional emails (password reset, security alerts) and, if opted-in, product updates.</li>
+          <li><strong>Analytics &amp; improvement</strong> — understand how the Service is used and improve features (using aggregated, anonymised data where possible).</li>
+          <li><strong>Legal compliance</strong> — comply with applicable laws, regulations, and law-enforcement requests.</li>
+        </ul>
+        <p>We rely on the following legal bases: <strong>contractual necessity</strong> (to provide the Service), <strong>legitimate interests</strong> (security, fraud prevention), <strong>consent</strong> (marketing emails), and <strong>legal obligation</strong>.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §3 -->
+      <div class="doc-section" id="p3">
+        <div class="sec-head">
+          <span class="sec-num">03</span>
+          <span class="sec-title">Information Sharing &amp; Disclosure</span>
+        </div>
+        <p>We <strong>never sell</strong> your personal data. We may share it only in these limited circumstances:</p>
+        <ul>
+          <li><strong>Service providers</strong> — Firebase / Google Cloud (authentication, hosting, storage) bound by data processing agreements.</li>
+          <li><strong>Legal requirements</strong> — if required by a valid court order, subpoena, or applicable law.</li>
+          <li><strong>Business transfers</strong> — in the event of a merger, acquisition, or asset sale, with advance notice to you.</li>
+          <li><strong>Your consent</strong> — in any other circumstances, only with your explicit permission.</li>
+        </ul>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §4 -->
+      <div class="doc-section" id="p4">
+        <div class="sec-head">
+          <span class="sec-num">04</span>
+          <span class="sec-title">Data Retention</span>
+        </div>
+        <p>We retain your account data for as long as your account is active. Security event logs are retained for <strong>90 days</strong> by default (configurable on paid plans). Usage analytics are retained for up to <strong>24 months</strong>.</p>
+        <p>When you delete your account, we will delete or anonymise your personal data within <strong>30 days</strong>, except where we are required to retain it for legal compliance.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §5 -->
+      <div class="doc-section" id="p5">
+        <div class="sec-head">
+          <span class="sec-num">05</span>
+          <span class="sec-title">Cookies &amp; Tracking</span>
+        </div>
+        <p>We use the following cookies and similar technologies:</p>
+        <ul>
+          <li><strong>Strictly necessary</strong> — session cookies for authentication (cannot be disabled).</li>
+          <li><strong>Analytics</strong> — Google Analytics (anonymised IP) to understand usage patterns. You may opt out via your browser or Google's opt-out extension.</li>
+          <li><strong>Preferences</strong> — to remember your UI settings.</li>
+        </ul>
+        <p>You can manage cookies through your browser settings. Disabling strictly necessary cookies will prevent you from logging in.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §6 -->
+      <div class="doc-section" id="p6">
+        <div class="sec-head">
+          <span class="sec-num">06</span>
+          <span class="sec-title">Your Rights &amp; Choices</span>
+        </div>
+        <p>Depending on your location, you may have the following rights regarding your personal data:</p>
+        <ul>
+          <li><strong>Access</strong> — request a copy of the data we hold about you.</li>
+          <li><strong>Rectification</strong> — correct inaccurate or incomplete data.</li>
+          <li><strong>Erasure</strong> — request deletion ("right to be forgotten").</li>
+          <li><strong>Portability</strong> — receive your data in a structured, machine-readable format.</li>
+          <li><strong>Objection / Restriction</strong> — object to or restrict certain processing activities.</li>
+          <li><strong>Withdraw consent</strong> — unsubscribe from marketing emails at any time via the unsubscribe link.</li>
+        </ul>
+        <p>To exercise any right, email <a href="mailto:privacy@kavachids.com">privacy@kavachids.com</a>. We will respond within <strong>30 days</strong>.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §7 -->
+      <div class="doc-section" id="p7">
+        <div class="sec-head">
+          <span class="sec-num">07</span>
+          <span class="sec-title">Security</span>
+        </div>
+        <p>We protect your data using:</p>
+        <ul>
+          <li><strong>Encryption in transit</strong> — all data is transferred over HTTPS/TLS 1.3.</li>
+          <li><strong>Encryption at rest</strong> — Firebase Storage and Firestore encrypt data at rest using AES-256.</li>
+          <li><strong>Authentication</strong> — passwords are never stored in plaintext; Firebase Authentication handles credential management with bcrypt hashing.</li>
+          <li><strong>Access control</strong> — strict role-based access control limits which team members can access production data.</li>
+        </ul>
+        <p>If you discover a security vulnerability, please report it responsibly to <a href="mailto:security@kavachids.com">security@kavachids.com</a>.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §8 -->
+      <div class="doc-section" id="p8">
+        <div class="sec-head">
+          <span class="sec-num">08</span>
+          <span class="sec-title">Children's Privacy</span>
+        </div>
+        <p>KAVACH IDS is not directed at children under the age of <strong>13</strong> (or 16 in the EEA/UK). We do not knowingly collect personal data from children. If you believe a child has provided us with personal data, please contact us immediately and we will delete it promptly.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §9 -->
+      <div class="doc-section" id="p9">
+        <div class="sec-head">
+          <span class="sec-num">09</span>
+          <span class="sec-title">Changes to This Policy</span>
+        </div>
+        <p>We may update this Privacy Policy periodically. We will notify you of material changes by email or via a prominent notice on the Service at least <strong>14 days</strong> before the change takes effect. Your continued use of the Service after the effective date constitutes acceptance of the updated Policy.</p>
+        <p>The "Effective" date at the top of this page always reflects the date of the most recent revision.</p>
+      </div>
+      <div class="sec-div"></div>
+
+      <!-- §10 -->
+      <div class="doc-section" id="p10">
+        <div class="sec-head">
+          <span class="sec-num">10</span>
+          <span class="sec-title">Contact &amp; Data Controller</span>
+        </div>
+        <p>KAVACH IDS is the data controller for personal data processed under this Policy.</p>
+        <ul>
+          <li><strong>Privacy enquiries:</strong> <a href="mailto:privacy@kavachids.com">privacy@kavachids.com</a></li>
+          <li><strong>Security disclosures:</strong> <a href="mailto:security@kavachids.com">security@kavachids.com</a></li>
+          <li><strong>Legal / DPO:</strong> <a href="mailto:legal@kavachids.com">legal@kavachids.com</a></li>
+        </ul>
+        <p>We aim to respond to all privacy requests within <strong>30 days</strong> and security disclosures within <strong>2 business days</strong>.</p>
+      </div>
+
+    </div><!-- /doc-body -->
+
+    <!-- Also-see chips -->
+    <div class="also-see">
+      <span class="also-lbl">Also see</span>
+      <a href="/terms" class="also-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Terms of Service
+      </a>
+      <a href="/register" class="also-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Create account
+      </a>
+      <a href="/login" class="also-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        Sign in
+      </a>
+    </div>
+
+    <!-- Trust footer -->
+    <div class="auth-foot">
+      <div class="tri">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        End-to-end encrypted
+      </div>
+      <div class="tri">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Secured by Firebase
+      </div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>
