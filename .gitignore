@@ -4,6 +4,9 @@ models/best_ids_model.pkl
 *.csv
 *.zip
 
+# Environment
+.env
+
 # Ignore folders
 uploads/
 test data/
